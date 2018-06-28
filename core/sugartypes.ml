@@ -61,14 +61,14 @@ type tyarg = Types.type_arg
    i.e. in let-bindings.
 *)
 
-type location = [`Client | `Server | `Native | `Unknown]
+type location = Client | Server | Native | Unknown
     [@@deriving show]
 
 let string_of_location = function
-| `Client -> "client"
-| `Server -> "server"
-| `Native -> "native"
-| `Unknown -> "unknown"
+| Client -> "client"
+| Server -> "server"
+| Native -> "native"
+| Unknown -> "unknown"
 
 type restriction = [ `Any | `Base | `Session | `Effect ]
     [@@deriving eq,show]

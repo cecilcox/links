@@ -87,7 +87,7 @@ let resolve_name_conflicts : pattern -> stringset -> pattern
 let parameterize : (pattern * phrase) list -> pattern list list option -> (pattern * phrase) list
   = fun cases params ->
   let wrap_fun params body =
-    (`FunLit (None, `Unl, (params, body), `Unknown), dp)
+    (`FunLit (None, `Unl, (params, body), Unknown), dp)
   in
   match params with
     None
@@ -200,7 +200,7 @@ object
   method! phrasenode = function
     | `HandlerLit hnlit ->
        let fnlit = funlit_of_handlerlit hnlit in
-       let funlit : Sugartypes.phrasenode = `FunLit (None, `Unl, fnlit, `Unknown) in
+       let funlit : Sugartypes.phrasenode = `FunLit (None, `Unl, fnlit, Unknown) in
        super#phrasenode funlit
     | e -> super#phrasenode e
 
@@ -226,6 +226,6 @@ object
   method! bindingnode = function
     | `Handler (binder, hnlit, annotation) ->
        let fnlit  = funlit_of_handlerlit hnlit in
-       `Fun (binder, `Unl, ([], fnlit), `Unknown, annotation)
+       `Fun (binder, `Unl, ([], fnlit), Unknown, annotation)
     | b -> super#bindingnode b
 end

@@ -1,5 +1,6 @@
-open Utility
 open Ir
+open Sugartypes
+open Utility
 
 (* {0 Sugar To IR}
 
@@ -550,7 +551,7 @@ struct
     let f_info = (ft, "", `Local) in
     let rest f : tail_computation sem = lift (`Special (`CallCC (`Variable f)),
                                               body_type) in
-      M.bind (fun_binding (f_info, ([], [kb], body), `Unknown)) rest
+      M.bind (fun_binding (f_info, ([], [kb], body), Unknown)) rest
 
   let letfun env ((ft, _, _) as f_info, (tyvars, (ps, body)), location) rest =
     let xsb : binder list =

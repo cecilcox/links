@@ -32,7 +32,7 @@ object (o : 'self_type)
         let e : phrasenode =
           `FnAppl
             ((`TAppl ((`Var "spawnWait", dp), [`Row inner_eff; `Type body_type; `Row outer_eff]), dp),
-             [(`FunLit (Some [(Types.make_tuple_type [], inner_eff)], `Unl, ([[]], body), `Unknown), dp)])
+             [(`FunLit (Some [(Types.make_tuple_type [], inner_eff)], `Unl, ([[]], body), Unknown), dp)])
         in
           (o, e, body_type)
     | `Spawn (k, spawn_loc, body, Some inner_eff) ->
@@ -65,7 +65,7 @@ object (o : 'self_type)
         let e : phrasenode =
           `FnAppl
             ((`TAppl ((`Var spawn_fun, dp), [`Row inner_eff; `Type body_type; `Row outer_eff]), dp),
-             [(`FunLit (Some [(Types.make_tuple_type [], inner_eff)], `Unl, ([[]], body), `Unknown), dp);
+             [(`FunLit (Some [(Types.make_tuple_type [], inner_eff)], `Unl, ([[]], body), Unknown), dp);
               spawn_loc_phr])
         in
           (o, e, process_type)

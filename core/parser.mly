@@ -406,10 +406,10 @@ fixity:
 | POSTFIX                                                      { `Post, $1 }
 
 perhaps_location:
-| SERVER                                                       { `Server }
-| CLIENT                                                       { `Client }
-| NATIVE                                                       { `Native }
-| /* empty */                                                  { `Unknown }
+| SERVER                                                       { Server }
+| CLIENT                                                       { Client }
+| NATIVE                                                       { Native }
+| /* empty */                                                  { Unknown }
 
 constant:
 | UINTEGER                                                     { `Int $1    , pos() }
@@ -484,8 +484,8 @@ primary_expression:
 | LBRACKET exps RBRACKET                                       { `ListLit ($2, None), pos() }
 | LBRACKET exp DOTDOT exp RBRACKET                             { `RangeLit($2, $4), pos() }
 | xml                                                          { $1 }
-| FUN arg_lists block                                          { `FunLit (None, `Unl, ($2, (`Block $3, pos ())), `Unknown), pos() }
-| LINFUN arg_lists block                                       { `FunLit (None, `Lin, ($2, (`Block $3, pos ())), `Unknown), pos() }
+| FUN arg_lists block                                          { `FunLit (None, `Unl, ($2, (`Block $3, pos ())), Unknown), pos() }
+| LINFUN arg_lists block                                       { `FunLit (None, `Lin, ($2, (`Block $3, pos ())), Unknown), pos() }
 | LEFTTRIANGLE cp_expression RIGHTTRIANGLE                     { `CP $2, pos () }
 | handler_depth optional_computation_parameter handler_parameterization              {  let (body, args) = $3 in
 										      let hnlit = ($1, $2, body, args) in
@@ -908,12 +908,12 @@ links_open:
 | OPEN CONSTRUCTOR                                             { `QualifiedImport [$2], pos () }
 
 binding:
-| VAR pattern EQ exp SEMICOLON                                 { `Val ([], $2, $4, `Unknown, None), pos () }
+| VAR pattern EQ exp SEMICOLON                                 { `Val ([], $2, $4, Unknown, None), pos () }
 | exp SEMICOLON                                                { `Exp $1, pos () }
-| signature FUN var arg_lists block                            {  annotate $1 (`Fun ($3, `Unl, ($4, (`Block $5, pos ())), `Unknown, pos ())) }
-| signature LINFUN var arg_lists block                         {  annotate $1 (`Fun ($3, `Lin, ($4, (`Block $5, pos ())), `Unknown, pos ())) }
-| FUN var arg_lists block                                      { `Fun ((fst $2, None, snd $2), `Unl, ([], ($3, (`Block $4, pos ()))), `Unknown, None), pos () }
-| LINFUN var arg_lists block                                   { `Fun ((fst $2, None, snd $2), `Lin, ([], ($3, (`Block $4, pos ()))), `Unknown, None), pos () }
+| signature FUN var arg_lists block                            {  annotate $1 (`Fun ($3, `Unl, ($4, (`Block $5, pos ())), Unknown, pos ())) }
+| signature LINFUN var arg_lists block                         {  annotate $1 (`Fun ($3, `Lin, ($4, (`Block $5, pos ())), Unknown, pos ())) }
+| FUN var arg_lists block                                      { `Fun ((fst $2, None, snd $2), `Unl, ([], ($3, (`Block $4, pos ()))), Unknown, None), pos () }
+| LINFUN var arg_lists block                                   { `Fun ((fst $2, None, snd $2), `Lin, ([], ($3, (`Block $4, pos ()))), Unknown, None), pos () }
 | typedecl SEMICOLON                                           { $1 }
 | typed_handler_binding                                        { let (b, hnlit, pos) = $1 in
                                                                  `Handler (b, hnlit, None), pos }

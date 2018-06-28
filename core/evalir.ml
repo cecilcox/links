@@ -4,6 +4,7 @@ open Lwt
 open Utility
 open Proc
 open Pervasives
+open Sugartypes
 
 let lookup_fun = Tables.lookup Tables.fun_defs
 let find_fun = Tables.find Tables.fun_defs
@@ -68,14 +69,14 @@ struct
     | Some (finfo, _, None, location) ->
       begin
         match location with
-        | `Server | `Unknown ->
+        | Server | Unknown ->
           (* TODO: perhaps we should actually use env here - and make
              sure we only call this function when it is sufficiently
              small *)
           Some (`FunctionPtr (f, None))
-        | `Client ->
+        | Client ->
           Some (`ClientFunction (Js.var_name_binder (f, finfo)))
-        | `Native -> assert false
+        | Native -> assert false
       end
     | _ -> assert false
 

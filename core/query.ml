@@ -294,16 +294,16 @@ struct
         | _ ->
           begin
             match location with
-            | `Server | `Unknown ->
+            | Server | Unknown ->
                 let env =
                   match z, fvs with
                   | None, None       -> Value.Env.empty
                   | Some z, Some fvs -> Value.Env.bind z (fvs, `Local) Value.Env.empty
                   | _, _ -> assert false in
                 `Closure ((xs, body), env_of_value_env env)
-            | `Client ->
+            | Client ->
               failwith ("Attempt to use client function: " ^ Js.var_name_binder (f, finfo) ^ " in query")
-            | `Native ->
+            | Native ->
               failwith ("Attempt to use native function: " ^ Var.show_binder (f, finfo) ^ " in query")
           end
       end
@@ -600,7 +600,7 @@ struct
               | `Let (xb, (_, tc)) ->
                   let x = Var.var_of_binder xb in
                     computation (bind env (x, tail_computation env tc)) (bs, tailcomp)
-              | `Fun (_, _, _, (`Client | `Native)) ->
+              | `Fun (_, _, _, (Client | Native)) ->
                   eval_error "Client function"
               | `Fun ((f, _), _, _, _) ->
                 (* This should never happen now that we have closure conversion*)

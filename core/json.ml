@@ -58,10 +58,10 @@ let js_dq_escape_char =
   | ch -> String.make 1 ch
 
 let jsonize_location : Ir.location -> string = function
-  | `Client  -> "client"
-  | `Server  -> "server"
-  | `Native  -> "native"
-  | `Unknown -> "unknown"
+  | Client  -> "client"
+  | Server  -> "server"
+  | Native  -> "native"
+  | Unknown -> "unknown"
 
 let rec string_listify : string list -> string = function
   | [] -> nil_literal

@@ -4,6 +4,7 @@ open List
 open Types
 open Utility
 open Proc
+open Sugartypes
 
 (* Alias environment *)
 module AliasEnv = Env.String
@@ -1692,9 +1693,9 @@ let primitive_name = Env.Int.lookup venv
 
 let primitive_location (name:string) =
   match fst3 (List.assoc name env) with
-    | `Client ->  `Client
-    | `Server _ -> `Server
-    | #primitive -> `Unknown
+    | `Client -> Client
+    | `Server _ -> Server
+    | #primitive -> Unknown
 
 let rec function_arity =
   function
