@@ -357,9 +357,6 @@ nofun_declaration:
 | signature tlvarbinding SEMICOLON                             { annotate $loc($1) $1 $loc($2) (`Var $2) }
 | typedecl SEMICOLON                                           { $1 }
 
-| links_module                                                 { $1 }
-| links_open SEMICOLON                                         { $1 }
-
 alien_datatype:
 | var COLON datatype SEMICOLON                                 { (make_untyped_binder $1, datatype $3) }
 
@@ -367,17 +364,10 @@ alien_datatypes:
 | alien_datatype                                               { [$1] }
 | alien_datatype alien_datatypes                               { $1 :: $2 }
 
-links_module:
-| MODULE module_name moduleblock                               { with_pos $loc($2) (`Module ($2, $3)) }
-
 alien_block:
 | ALIEN VARIABLE STRING LBRACE alien_datatypes RBRACE          { let language     = $2 in
                                                                  let library_name = $3 in
-                                                                 with_pos $loc (`AlienBlock (language, library_name, $5)) }
-
-module_name:
-| CONSTRUCTOR                                                  { $1 }
-
+                                                                 `AlienBlock (language, library_name, $5), pos () }
 fun_declarations:
 | fun_declarations fun_declaration                             { $1 @ [$2] }
 | fun_declaration                                              { [$1] }
@@ -468,18 +458,8 @@ constant:
 | FALSE                                                        { `Bool false }
 | CHAR                                                         { `Char $1    }
 
-qualified_name:
-| CONSTRUCTOR DOT qualified_name_inner                         { $1 :: $3 }
-
-qualified_name_inner:
-| CONSTRUCTOR DOT qualified_name_inner                         { $1 :: $3 }
-| VARIABLE                                                     { [$1] }
-
-qualified_type_name:
-| CONSTRUCTOR DOT separated_nonempty_list(DOT, CONSTRUCTOR)    { $1 :: $3 }
 
 atomic_expression:
-| qualified_name                                               { with_pos $loc (`QualifiedVar $1) }
 | VARIABLE                                                     { with_pos $loc (`Var          $1) }
 | constant                                                     { with_pos $loc (`Constant     $1) }
 | parenthesized_thing                                          { $1 }
@@ -997,9 +977,6 @@ record_labels:
 | record_label COMMA record_labels                             { $1 :: $3 }
 | record_label                                                 { [$1] }
 
-links_open:
-| OPEN separated_nonempty_list(DOT, CONSTRUCTOR)               { with_pos $loc (`QualifiedImport $2) }
-
 binding:
 | VAR pattern EQ exp SEMICOLON                                 { with_pos $loc (`Val ([], $2, $4, `Unknown, None)) }
 | exp SEMICOLON                                                { with_pos $loc (`Exp $1) }
@@ -1015,16 +992,11 @@ binding:
                                                                                   None)) }
 | typedecl SEMICOLON                                           { $1 }
 | typed_handler_binding                                        { with_pos $loc (`Handler $1) }
-| links_module                                                 { $1 }
 | alien_block                                                  { $1 }
-| links_open                                                   { $1 }
 
 bindings:
 | binding                                                      { [$1] }
 | bindings binding                                             { $1 @ [$2] }
-
-moduleblock:
-| LBRACE declarations RBRACE                                   { $2 }
 
 block:
 | LBRACE block_contents RBRACE                                 { $2 }
@@ -1143,7 +1115,6 @@ session_datatype:
 
 parenthesized_datatypes:
 | LPAREN RPAREN                                                { [] }
-| LPAREN qualified_type_name RPAREN                            { [with_pos $loc (`QualifiedTypeApplication ($2, []))] }
 | LPAREN datatypes RPAREN                                      { $2 }
 
 primary_datatype:

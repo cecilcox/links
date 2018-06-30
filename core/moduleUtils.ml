@@ -55,16 +55,13 @@ object
   method satisfied = has_no_modules
 
   method! bindingnode = function
-    | `QualifiedImport _
     | `Module _ -> {< has_no_modules = false >}
     | b -> super#bindingnode b
 
   method! datatypenode = function
-    | `QualifiedTypeApplication _ -> {< has_no_modules = false >}
-    | dt -> super#datatypenode dt
+    | dt -> super#datatype dt
 
   method! phrasenode = function
-    | `QualifiedVar _ -> {< has_no_modules = false >}
     | pn -> super#phrasenode pn
 end
 

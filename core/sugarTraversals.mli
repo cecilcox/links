@@ -48,6 +48,7 @@ class map :
     method pattern         : pattern -> pattern
     method operator        : operator -> operator
     method name            : name -> name
+    method qualified_name  : QualifiedName.t -> QualifiedName.t
     method logical_binop   : logical_binop -> logical_binop
     method location        : location -> location
     method iterpatt        : iterpatt -> iterpatt
@@ -119,6 +120,7 @@ class fold :
     method pattern         : pattern -> 'self
     method operator        : operator -> 'self
     method name            : name -> 'self
+    method qualified_name  : QualifiedName.t -> 'self
     method logical_binop   : logical_binop -> 'self
     method location        : location -> 'self
     method iterpatt        : iterpatt -> 'self
@@ -180,6 +182,7 @@ object ('self)
   method location        : location -> 'self * location
   method logical_binop   : logical_binop -> 'self * logical_binop
   method name            : name -> 'self * name
+  method qualified_name  : QualifiedName.t -> 'self * QualifiedName.t
   method operator        : operator -> 'self * operator
   method option          : 'a . ('self -> 'a -> 'self * 'a) -> 'a option -> 'self * 'a option
   method patternnode     : patternnode -> 'self * patternnode
