@@ -46,6 +46,8 @@ open Ir
 
 let show_compiled_ir = Basicsettings.Sugartoir.show_compiled_ir
 
+module QualifiedName = Sugartypes.QualifiedName
+
 type datatype = Types.datatype
 
 module NEnv = Env.String
@@ -747,7 +749,7 @@ struct
         match e.Sugartypes.node with
           | `TAbstr (_, e)
           | `TAppl (e, _) -> is_pure_primitive e
-          | `Var f when Lib.is_pure_primitive f -> true
+          | `Var f  when Lib.is_pure_primitive (QualifiedName.unqualify f) -> true
           | _ -> false in
 
       let eff = lookup_effects env in
@@ -758,7 +760,7 @@ struct
       let evs = List.map ev in
         match e with
           | `Constant c -> cofv (I.constant c)
-          | `Var x -> cofv (I.var (lookup_name_and_type x env))
+          | `Var x -> cofv (I.var (lookup_name_and_type (QualifiedName.unqualify x) env))
           | `RangeLit (low, high) ->
               I.apply (instantiate_mb "intRange", [ev low; ev high])
           | `ListLit ([], Some t) ->
@@ -806,11 +808,11 @@ struct
               cofv (I.apply_pure(instantiate n tyargs, [ev e]))
           | `UnaryAppl ((tyargs, `Name n), e) ->
               I.apply (instantiate n tyargs, [ev e])
-          | `FnAppl ({Sugartypes.node=`Var f; _}, es) when Lib.is_pure_primitive f ->
-              cofv (I.apply_pure (I.var (lookup_name_and_type f env), evs es))
+          | `FnAppl ({Sugartypes.node=`Var f; _}, es) when Lib.is_pure_primitive (QualifiedName.unqualify f) ->
+              cofv (I.apply_pure (I.var (lookup_name_and_type (QualifiedName.unqualify f) env), evs es))
           | `FnAppl ({Sugartypes.node=`TAppl ({Sugartypes.node=`Var f; _}, tyargs); _}, es)
-               when Lib.is_pure_primitive f ->
-              cofv (I.apply_pure (instantiate f tyargs, evs es))
+               when Lib.is_pure_primitive (QualifiedName.unqualify f) ->
+              cofv (I.apply_pure (instantiate (QualifiedName.unqualify f) tyargs, evs es))
           | `FnAppl (e, es) when is_pure_primitive e ->
               cofv (I.apply_pure (ev e, evs es))
           | `FnAppl (e, es) ->
@@ -906,8 +908,9 @@ struct
               in
                 I.switch env (ev e, cases, t)
           | `DatabaseLit (name, (None, _)) ->
-              I.database (ev (with_pos pos (`RecordLit ([("name", name)],
-                                          Some (with_pos pos (`FnAppl (with_pos pos (`Var "getDatabaseConfig"), [])))))))
+              let q = QualifiedName.of_name "getDatabaseConfig" in
+                I.database (ev (with_pos pos (`RecordLit ([("name", name)],
+                                          Some (with_pos pos (`FnAppl (with_pos pos (`Var q), [])))))))
           | `DatabaseLit (name, (Some driver, args)) ->
               let args =
                 match args with

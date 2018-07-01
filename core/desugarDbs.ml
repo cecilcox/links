@@ -149,16 +149,18 @@ object (o : 'self_type)
         let o, (e : Sugartypes.phrasenode) =
           match returning with
             | None ->
+                let q = QualifiedName.of_name "InsertRows" in
                 (o,
                  `FnAppl
-                   (with_dummy_pos (`TAppl (with_dummy_pos (`Var "InsertRows"),
+                   (with_dummy_pos (`TAppl (with_dummy_pos (`Var q),
                              [`Type read_type; `Type write_type; `Type needed_type; `Type value_type; `Row eff])),
                     [table; rows]))
             | Some field ->
+                let q = QualifiedName.of_name "InsertReturning" in
                 let o, field, _ = o#phrase field in
                   (o,
                    `FnAppl
-                     (with_dummy_pos (`TAppl (with_dummy_pos (`Var "InsertReturning"),
+                     (with_dummy_pos (`TAppl (with_dummy_pos (`Var q),
                                [`Type read_type; `Type write_type; `Type needed_type; `Type value_type; `Row eff])),
                       [table; rows; field]))
         in

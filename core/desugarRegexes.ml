@@ -13,9 +13,10 @@ let desugar_regex phrase regex_type pos : regex -> phrasenode =
   let expr e =
     let (_, e, t) = phrase e in
     let v = Utility.gensym ~prefix:"_regex_" () in
+    let q = QualifiedName.of_name v in
       begin
         exprs := (v, e, t) :: !exprs;
-        with_pos pos (`Var v)
+        with_pos pos (`Var q)
       end in
   let rec aux : regex -> phrasenode =
     function
@@ -58,7 +59,8 @@ let desugar_regex phrase regex_type pos : regex -> phrasenode =
              with_pos pos e)
 
 let appl pos name tyargs args =
-  with_pos pos (`FnAppl (with_pos pos (tappl (`Var name, tyargs)), args))
+  let q = QualifiedName.of_name name in
+  with_pos pos (`FnAppl (with_pos pos (tappl (`Var q, tyargs)), args))
 
 let desugar_regexes env =
 object(self)

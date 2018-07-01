@@ -39,9 +39,10 @@ object (o: 'self_type)
         let process_type = `Application (Types.process, [`Row inner_effects]) in
         let o = o#with_effects inner_effects in
         let (o, body, _) = o#phrasenode body in
+        let q = QualifiedName.of_name as_var in
         let body =
           `TryInOtherwise (with_pos body_loc body, as_pat,
-                           (with_dummy_pos (`Var as_var)), unit_phr, (Some (Types.unit_type))) in
+                           (with_dummy_pos (`Var q)), unit_phr, (Some (Types.unit_type))) in
         let o = o#restore_envs envs in
         (o, (`Spawn (k, spawn_loc, with_pos body_loc body, Some inner_effects)), process_type)
     | e -> super#phrasenode e

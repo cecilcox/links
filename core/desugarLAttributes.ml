@@ -13,7 +13,9 @@ let has_lattrs : phrasenode -> bool = function
   | `Xml (_, attrs, _, _) -> exists (fst ->- start_of ~is:"l:") attrs
   | _ -> false
 
-let apply name args : phrase = with_dummy_pos (`FnAppl (with_dummy_pos (`Var name), args))
+let apply name args : phrase =
+  let q = QualifiedName.of_name name in
+  with_dummy_pos (`FnAppl (with_dummy_pos (`Var q), args))
 
 let server_use name =
   apply "assoc" [with_dummy_pos (`Constant (`String name));

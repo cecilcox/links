@@ -257,7 +257,7 @@ let cp_unit p = with_pos p (`Unquote ([], with_pos p (`TupleLit [])))
 %token MU FORALL ALIEN SIG OPEN
 %token MODULE
 %token BANG QUESTION
-%token PERCENT EQUALSTILDE PLUS STAR ALTERNATE SLASH SSLASH CARET DOLLAR
+%token PERCENT EQUALSTILDE PLUS STAR ALTERNATE SLASH SSLASH BACKSLASH CARET DOLLAR
 %token <char*char> RANGE
 %token <string> QUOTEDMETA
 %token <string> SLASHFLAGS
@@ -332,6 +332,14 @@ arg:
 
 var:
 | VARIABLE                                                     { with_pos $loc $1 }
+
+qualified_variable:
+| CONSTRUCTOR BACKSLASH qualified_variable { $1 :: $3 }
+| VARIABLE { [$1] }
+
+qualified_constructor:
+| CONSTRUCTOR BACKSLASH qualified_constructor { $1 :: $3 }
+| CONSTRUCTOR { [$1] }
 
 preamble:
 | /* empty */                                                  { [] }
@@ -458,14 +466,13 @@ constant:
 | FALSE                                                        { `Bool false }
 | CHAR                                                         { `Char $1    }
 
-
 atomic_expression:
-| VARIABLE                                                     { with_pos $loc (`Var          $1) }
+| qualified_variable                                           { with_pos $loc (`Var          (QualifiedName.of_path $1)) }
 | constant                                                     { with_pos $loc (`Constant     $1) }
 | parenthesized_thing                                          { $1 }
 /* HACK: allows us to support both mailbox receive syntax
 and receive for session types. */
-| RECEIVE                                                      { with_pos $loc (`Var "receive") }
+| RECEIVE                                                      { with_pos $loc (`Var          (QualifiedName.of_path ["receive"])) }
 
 cp_name:
 | VARIABLE                                                     { make_untyped_binder (with_pos $loc $1) }
@@ -905,11 +912,11 @@ field_constraint:
 | DEFAULT                                                      { `Default }
 
 perhaps_db_args:
-| atomic_expression                                            { Some $1 }
+| atomic_expression                                         { Some $1 }
 | /* empty */                                                  { None }
 
 perhaps_db_driver:
-| atomic_expression perhaps_db_args                            { Some $1, $2 }
+| atomic_expression perhaps_db_args                         { Some $1, $2 }
 | /* empty */                                                  { None, None }
 
 database_expression:
@@ -1131,7 +1138,7 @@ primary_datatype:
 | LBRACKET datatype RBRACKET                                   { `List $2 }
 | type_var                                                     { $1 }
 | kinded_type_var                                              { $1 }
-| CONSTRUCTOR                                                  { match $1 with
+| qualified_constructor                                        { match QualifiedName.(unqualify (of_path $1)) with
                                                                    | "Bool"    -> `Primitive `Bool
                                                                    | "Int"     -> `Primitive `Int
                                                                    | "Char"    -> `Primitive `Char
@@ -1141,7 +1148,7 @@ primary_datatype:
                                                                    | "Database"-> `DB
                                                                    | t         -> `TypeApplication (t, [])
                                                                }
-| CONSTRUCTOR LPAREN type_arg_list RPAREN                      { `TypeApplication ($1, $3) }
+| qualified_constructor LPAREN type_arg_list RPAREN            { `TypeApplication (QualifiedName.(unqualify (of_path $1)), $3) }
 
 type_var:
 | VARIABLE                                                     { `TypeVar ($1, None, `Rigid) }
