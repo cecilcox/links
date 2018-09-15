@@ -165,8 +165,8 @@ let wrap_linear_handlers prog =
       inherit SugarTraversals.map as super
       method! phrase = function
         | {node=`TryInOtherwise (l, x, m, n, dtopt); pos} ->
-            let fresh_var = Utility.gensym ?prefix:(Some "try_x") () in
-            let fresh_pat = with_pos pos (`Variable (make_untyped_binder (with_pos pos fresh_var))) in
+            let fresh_var = QualifiedName.of_name (Utility.gensym ?prefix:(Some "try_x") ()) in
+            let fresh_pat = with_pos pos (`Variable (make_untyped_binder (with_pos pos (QualifiedName.unqualify fresh_var)))) in
             with_pos pos
             (`Switch (
               with_pos pos

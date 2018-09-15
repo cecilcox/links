@@ -319,6 +319,7 @@ and bindingnode = [
 | `Exp     of phrase
 | `Module  of name * binding list
 | `AlienBlock of (name * name * ((binder * datatype') list))
+| `Import  of QualifiedName.t
 ]
 and binding = bindingnode with_pos
 and directive = string * string list
@@ -526,9 +527,9 @@ struct
     | `DoOperation (_, ps, _) -> union_map phrase ps
     | `TryInOtherwise (p1, pat, p2, p3, _ty) -> union (union_map phrase [p1; p2; p3]) (pattern pat)
     | `Raise -> empty
-  and binding ({node = binding; _}: binding) : StringSet.t (* vars bound in the pattern *)
+  and binding ({node = binding'; _}: binding) : StringSet.t (* vars bound in the pattern *)
                                              * StringSet.t (* free vars in the rhs *) =
-    match binding with
+    match binding' with
     | `Val (_, pat, rhs, _, _) -> pattern pat, phrase rhs
     | `Handler (bndr, hnlit, _) ->
        let name = singleton (name_of_binder bndr) in
@@ -554,8 +555,18 @@ struct
               StringSet.add (name_of_binder bndr) acc)
             (StringSet.empty) decls in
         bound_foreigns, empty
-        (* TODO: this needs to be implemented *)
-    | `Module _ -> failwith "Freevars for modules not implemented yet"
+    | `Import _ -> empty, empty
+    | `Module (name, bs) ->
+       let (_, fvs) =
+         List.fold_right
+           (fun b (bvs, fvs) ->
+             let bvs', fvs' = binding b in
+             let bvs'' = union bvs bvs' in
+             let fvs'' = diff bvs'' (union fvs fvs') in
+             (bvs'', fvs''))
+           bs (empty, empty)
+       in
+       singleton name, fvs
   and funlit (args, body : funlit) : StringSet.t =
     diff (phrase body) (union_map (union_map pattern) args)
   and handlerlit (_, m, cases, params : handlerlit) : StringSet.t =
