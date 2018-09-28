@@ -415,6 +415,7 @@ val pp_type_arg :  Format.formatter -> type_arg -> unit
 val show_quantifier : quantifier -> string
 val pp_row : Format.formatter -> row -> unit
 val pp_tycon_spec: Format.formatter -> tycon_spec -> unit
+val pp_module_t : Format.formatter -> module_t -> unit
 
 module type TYPE_VISITOR =
 sig

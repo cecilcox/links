@@ -40,51 +40,52 @@ type context =
     | `Variant of string | `NVariant of StringSet.t
     | `Constant of constant | `NConstant of ConstSet.t ]
 
-module NEnv = Env.String
-module TEnv = Env.Int
+module NEnv = SugarToIrEnv.NEnv
+module TEnv = SugarToIrEnv.TEnv
 module PEnv = Env.Int
 
-type nenv = var NEnv.t
-type tenv = Types.datatype TEnv.t
 type penv = (context * value) PEnv.t
 
-type env = nenv * tenv * Types.row * penv
-type raw_env = nenv * tenv * Types.row
+type raw_env = SugarToIrEnv.env
+type env = raw_env * penv
 
-let bind_context var context (nenv, tenv, eff, penv) =
-  (nenv, tenv, eff, PEnv.bind penv (var, context))
+let rawify = fst
 
-let bind_type var t (nenv, tenv, eff, penv) =
-  (nenv, TEnv.bind tenv (var, t), eff, penv)
+(* Functions on env (not raw_env / SugarToIrEnv.env) below *)
+let bind_context var context (renv, penv) =
+  (renv, PEnv.bind penv (var, context))
 
-let mem_context var (_nenv, _tenv, _eff, penv) =
+let bind_type var t (renv, penv) =
+  (SugarToIrEnv.bind_type var t renv, penv)
+
+let mem_context var (_renv, penv) =
   PEnv.has penv var
 
-let mem_type var (_nenv, tenv, _eff, _penv) =
-  TEnv.has tenv var
+let mem_type var (renv, _penv) =
+  TEnv.has renv.SugarToIrEnv.ir_type_env var
 
-let lookup_context var (_nenv, _tenv, _eff, penv) =
+let lookup_context var (_renv, penv) =
   PEnv.lookup penv var
 
-let lookup_type var (_nenv, tenv, _eff, _penv) =
-  TEnv.lookup tenv var
+let lookup_type var (renv, _penv) =
+  TEnv.lookup renv.SugarToIrEnv.ir_type_env var
 
-let lookup_name name (nenv, _tenv, _eff, _penv) =
-  NEnv.lookup nenv name
+let lookup_name name (renv, _penv) =
+  SugarToIrEnv.lookup_name name renv
 
-let lookup_effects (_nenv, _tenv, eff, _penv) = eff
+let lookup_effects (renv, _penv) = renv.SugarToIrEnv.effects
 
 let rec desugar_pattern : Ir.scope -> Sugartypes.pattern -> pattern * raw_env =
   fun scope {Sugartypes.node=p; Sugartypes.pos} ->
     let pp = desugar_pattern scope in
-    let empty = (NEnv.empty, TEnv.empty, Types.make_empty_open_row (`Any, `Any)) in
-    let (++) (nenv, tenv, _) (nenv', tenv', eff') = (NEnv.extend nenv nenv', TEnv.extend tenv tenv', eff') in
-    let fresh_binder (nenv, tenv, eff) bndr =
+    let empty = SugarToIrEnv.make_empty (Types.make_empty_open_row (`Any, `Any)) in
+    let (++) = SugarToIrEnv.(++) in
+    let fresh_binder renv bndr =
       assert (Sugartypes.binder_has_type bndr);
       let name = Sugartypes.name_of_binder bndr in
       let t = Sugartypes.type_of_binder_exn bndr in
       let xb, x = Var.fresh_var (t, name, scope) in
-      xb, (NEnv.bind nenv (name, x), TEnv.bind tenv (x, t), eff)
+      xb, SugarToIrEnv.bind_name_and_type name x t renv
     in
       match p with
         | `Any -> `Any, empty
@@ -157,13 +158,9 @@ sig
 end
   =
 struct
-  (* let lookup_type var (_nenv, tenv, _eff) = *)
-  (*   TEnv.lookup tenv var *)
 
-  let lookup_name name (nenv, _tenv, _eff) =
-    NEnv.lookup nenv name
-
-  let lookup_effects (_nenv, _tenv, eff) = eff
+  let lookup_name = SugarToIrEnv.lookup_name
+  let lookup_effects = SugarToIrEnv.lookup_effects
 
   let nil env t : value =
     `TApp (`Variable (lookup_name "Nil" env),
@@ -193,13 +190,8 @@ sig
 end
   =
 struct
-  (* let lookup_type var (_nenv, tenv, _eff) = *)
-  (*   TEnv.lookup tenv var *)
-
-  let lookup_name name (nenv, _tenv, _eff) =
-    NEnv.lookup nenv name
-
-  let lookup_effects (_nenv, _tenv, eff) = eff
+  let lookup_name = SugarToIrEnv.lookup_name
+  let lookup_effects = SugarToIrEnv.lookup_effects
 
   let eq env t : value -> value -> value = fun v1 v2 ->
     let eff = lookup_effects env in
@@ -323,7 +315,7 @@ let rec reduce_pattern : pattern -> annotated_pattern = function
 (* reduce a raw clause to a clause  *)
 let reduce_clause : raw_clause -> clause =
   fun (ps, body) ->
-    (List.map reduce_pattern ps, fun (nenv, tenv, eff, _penv) -> body (nenv, tenv, eff))
+    (List.map reduce_pattern ps, fun (renv, _penv) -> body renv)
 
 (* partition clauses sequentially by pattern type *)
 let partition_clauses : clause list -> (clause list) list =
@@ -512,11 +504,10 @@ and match_list
     let var_val = `Variable var in
 
     let nil, list_head, list_tail =
-      let raw (nenv, tenv, eff, _) = (nenv, tenv, eff) in
 
-      let nil = nil (raw env) (TypeUtils.element_type t) in
-      let list_head env = list_head (raw env) in
-      let list_tail env = list_tail (raw env) in
+      let nil = nil (rawify env) (TypeUtils.element_type t) in
+      let list_head env = list_head (rawify env) in
+      let list_tail env = list_tail (rawify env) in
         nil, list_head, list_tail in
 
     let nil_branch () =
@@ -547,8 +538,8 @@ and match_list
           | `Cons, _ -> cons_branch ()
           | _ -> assert false
       else
-        let (nenv, tenv, eff, _) = env in
-          ([], `If (eq (nenv, tenv, eff) t var_val nil,
+        let renv = rawify env in
+          ([], `If (eq renv t var_val nil,
                     nil_branch (),
                     cons_branch()))
 
@@ -736,10 +727,10 @@ and match_constant
                    let env = bind_context var (`NConstant constants, `Variable var) env in
                    let clauses = apply_annotations (`Variable var) annotated_clauses in
                    let comp =
-                     let (nenv, tenv, eff, _) = env in
+                     let renv = rawify env in
                        ([],
                         `If
-                          (eq (nenv, tenv, eff) t (`Variable var) (`Constant constant),
+                          (eq renv t (`Variable var) (`Constant constant),
                            match_cases vars clauses def env,
                            comp))
                    in
@@ -864,9 +855,9 @@ and match_record
 (* the interface to the pattern-matching compiler *)
 let compile_cases
     : raw_env -> (Types.datatype * var * raw_clause list) -> Ir.computation =
-  fun (nenv, tenv, eff) (output_type, var, raw_clauses) ->
+  fun renv (output_type, var, raw_clauses) ->
     let clauses = List.map reduce_clause raw_clauses in
-    let initial_env = (nenv, tenv, eff, PEnv.empty) in
+    let initial_env = (renv, PEnv.empty) in
     let result =
       match_cases [var] clauses (fun _ -> ([], `Special (`Wrong output_type))) initial_env
     in
@@ -900,7 +891,7 @@ let compile_handle_parameters : raw_env -> (Ir.computation * pattern * Types.dat
 
 let compile_handle_cases
     : raw_env -> (raw_clause list * raw_clause list * (Ir.computation * pattern * Types.datatype) list * Sugartypes.handler_descriptor) -> Ir.computation -> Ir.computation =
-  fun (nenv, tenv, eff) (raw_value_clauses, raw_effect_clauses, params, desc) m ->
+  fun renv (raw_value_clauses, raw_effect_clauses, params, desc) m ->
   (* Observation: reduced continuation patterns are always trivial,
      i.e. a reduced continuation pattern is either a variable or a
      wildcard. Thus continuation patterns _always_ match and therefore
@@ -920,7 +911,7 @@ let compile_handle_cases
      respective compiled clause bodies such that each raw continuation
      binder is an alias of the fresh continuation binder. *)
   let (params, (with_parameters, outer_param_bindings)) =
-    compile_handle_parameters (nenv, tenv, eff) params
+    compile_handle_parameters renv params
   in
   let compiled_effect_cases =  (* The compiled cases *)
     if List.length raw_effect_clauses = 0 then
@@ -985,8 +976,8 @@ let compile_handle_cases
         in
         let compiled_transformed_effect_cases =
           let dummy_var = Var.(make_local_info ->- fresh_binder ->- var_of_binder) (variant_type, "_m") in
-          let tenv = TEnv.bind tenv (dummy_var, variant_type) in
-          let initial_env = (nenv, tenv, eff, PEnv.empty) in (* Need to bind raw continuation binders in tenv and nenv? *)
+          let renv' = SugarToIrEnv.bind_type dummy_var variant_type renv in
+          let initial_env = (renv', PEnv.empty) in (* Need to bind raw continuation binders in tenv and nenv? *)
           match snd @@ match_cases [dummy_var] transformed_effect_clauses (fun _ -> ([], `Special (`Wrong comp_ty))) initial_env with
           | `Case (_, clauses, _) -> clauses (* No default effect pattern *)
           | _ -> assert false
@@ -1045,8 +1036,8 @@ let compile_handle_cases
   let return : binder * computation =
     let (_, comp_ty, _, _) = Sugartypes.(desc.shd_types) in
     let scrutinee = Var.(make_local_info ->- fresh_binder) (comp_ty, "_return_value") in
-    let tenv = TEnv.bind tenv (Var.var_of_binder scrutinee, comp_ty) in
-    let initial_env = (nenv, tenv, eff, PEnv.empty) in
+    let renv' = SugarToIrEnv.bind_type (Var.var_of_binder scrutinee) comp_ty renv in
+    let initial_env = (renv', PEnv.empty) in
     let clauses = List.map reduce_clause raw_value_clauses in
     let body = match_cases [Var.var_of_binder scrutinee] clauses (fun _ -> ([], `Special (`Wrong comp_ty))) initial_env in
     scrutinee, with_parameters body
@@ -1090,9 +1081,9 @@ let match_choices : var -> clause list -> bound_computation =
 
 let compile_choices
     : raw_env -> (Types.datatype * var * raw_clause list) -> Ir.computation =
-  fun (nenv, tenv, eff) (_output_type, var, raw_clauses) ->
+  fun renv (_output_type, var, raw_clauses) ->
     let clauses = List.map reduce_clause raw_clauses in
-    let initial_env = (nenv, tenv, eff, PEnv.empty) in
+    let initial_env = (renv, PEnv.empty) in
     let result =
       match_choices var clauses initial_env
     in

@@ -41,12 +41,12 @@ object(self)
           let name = name_of_binder bnd in
           let pos = bnd.pos in
           o#add_binding (with_pos pos (`Foreign (bnd, name, lang, lib, dt)))) decls
-    | {node=`Module (name, bindings); pos} ->
+    | {node=`Module (name, module_interface, bindings); pos} ->
         let flattened_bindings =
           List.concat (
             List.map (fun b -> ((flatten_bindings ())#binding b)#get_bindings) bindings
           ) in
-        self#add_binding (with_pos pos (`Module (name, flattened_bindings)))
+        self#add_binding (with_pos pos (`Module (name, module_interface, flattened_bindings)))
     | b -> self#add_binding ((flatten_simple ())#binding b)
 
   method! program = function

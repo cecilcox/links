@@ -372,7 +372,7 @@ nofun_declaration:
 | module_import                                                { $1 }
 
 module_binding:
-| MODULE CONSTRUCTOR LBRACE maybe_declarations RBRACE          { with_pos $loc (`Module ($2, $4)) }
+| MODULE CONSTRUCTOR LBRACE maybe_declarations RBRACE          { with_pos $loc (`Module ($2, None, $4)) }
 
 module_import:
 | OPEN qualified_constructor SEMICOLON                         { with_pos $loc (`Import (QualifiedName.of_path $2)) }
