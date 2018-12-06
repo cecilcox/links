@@ -375,7 +375,7 @@ module_binding:
 | MODULE CONSTRUCTOR LBRACE maybe_declarations RBRACE          { with_pos $loc (`Module ($2, $4)) }
 
 module_import:
-| OPEN qualified_constructor                                   { with_pos $loc (`Import (QualifiedName.of_path $2)) }
+| OPEN qualified_constructor SEMICOLON                         { with_pos $loc (`Import (QualifiedName.of_path $2)) }
 
 alien_datatype:
 | var COLON datatype SEMICOLON                                 { (make_untyped_binder $1, datatype $3) }
