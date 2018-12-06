@@ -9,7 +9,7 @@ object (o : 'self_type)
 
   method! phrasenode = function
     | `CP p ->
-       let rec desugar_cp = fun o {node = p; pos} ->
+       let rec desugar_cp : 'selft_type -> cp_phrase -> 'self_type * phrasenode * Types.datatype = fun o {node = p; pos} ->
          let add_pos x = with_pos pos x in
          match p with
          | `Unquote (bs, e) ->
@@ -24,8 +24,8 @@ object (o : 'self_type)
             let q' = QualifiedName.of_name c in
             o, `Block
                 ([add_pos (`Val ([], add_pos `Any,
-                                      add_pos (`FnAppl (add_pos (q),
-                                                       [add_pos (q')])),
+                                      add_pos (`FnAppl (add_pos (`Var q),
+                                                       [add_pos (`Var q')])),
                                       `Unknown, None))],
                  add_pos e), t
          | `Grab ((c, Some (`Input (_a, s), grab_tyargs)), Some {node=x, Some u; _}, p) -> (* FYI: a = u *)
@@ -111,7 +111,7 @@ object (o : 'self_type)
                let (q, q', q'') = QualifiedName.(of_name "accept", of_name "close", of_name c) in
                add_pos (`Spawn (`Angel, `NoSpawnLocation, add_pos (`Block (
                                      [ add_pos (`Val ([], add_pos (`Variable (make_binder c s pos)),
-                                                           add_pos (`FnAppl (add_pos (`Var q), [add_pos (`Var c)])),
+                                                           add_pos (`FnAppl (add_pos (`Var q), [add_pos (`Var q'')])),
                                                            `Unknown, None));
                                        add_pos (`Val ([], add_pos (`Variable (make_binder c Types.make_endbang_type pos)),
                                                            add_pos left, `Unknown, None))],

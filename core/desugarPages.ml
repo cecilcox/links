@@ -50,8 +50,8 @@ let rec desugar_page (o, page_type) =
             desugar_nodes pos children
         | `Xml (name, attrs, dynattrs, children) ->
             let q = QualifiedName.of_name "plugP" in
-            let q' = QualifiedName.of_name x in
             let x = Utility.gensym ~prefix:"xml" () in
+            let q' = QualifiedName.of_name x in
               with_pos pos (`FnAppl
               (with_pos pos (`TAppl (with_pos pos (`Var q), [`Row (o#lookup_effects)])),
                [with_pos pos (`FunLit

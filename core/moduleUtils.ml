@@ -59,7 +59,7 @@ object
     | b -> super#bindingnode b
 
   method! datatypenode = function
-    | dt -> super#datatype dt
+    | dt -> super#datatypenode dt
 
   method! phrasenode = function
     | pn -> super#phrasenode pn

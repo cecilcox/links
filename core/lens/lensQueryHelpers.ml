@@ -37,22 +37,22 @@ let translate_op_to_sql = function
     | "||" -> "OR"
     | a -> a
 
-let name_of_var (expr: phrase) =
+let names_of_var (expr : phrase) =
     match expr.node with
-    | `Var n -> n
+    | `Var n -> QualifiedName.split n
     | _ -> failwith "Expected var."
 
 let rec lens_phrase_of_phrase : phrase -> lens_phrase = fun p ->
     match p.node with
     | `Constant c -> `Constant c
-    | `Var v -> `Var v
+    | `Var v -> `Var (QualifiedName.unqualify v) (*FXIXME: This breaks on qualified names *)
     | `UnaryAppl ((_, op), phrase) -> `UnaryAppl (op, lens_phrase_of_phrase phrase)
     | `InfixAppl ((_, op), phrase1, phrase2) -> `InfixAppl (op, lens_phrase_of_phrase phrase1, lens_phrase_of_phrase phrase2)
     | `TupleLit l -> `TupleLit (List.map lens_phrase_of_phrase l)
     | `FnAppl (fn, arg) ->
         begin
-            match name_of_var fn with
-            | "not" -> `UnaryAppl ((`Name "!"), lens_phrase_of_phrase (List.hd arg))
+            match names_of_var fn with
+            | ["not"] -> `UnaryAppl ((`Name "!"), lens_phrase_of_phrase (List.hd arg))
             | _ -> failwith "Unsupported function"
         end
     | _ -> failwith "Unknown phrasenode for lens_phrase to phrase."

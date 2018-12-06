@@ -372,10 +372,10 @@ nofun_declaration:
 | module_import                                                { $1 }
 
 module_binding:
-| MODULE CONSTRUCTOR LBRACE maybe_declarations RBRACE          { `Module ($2, $4), pos() }
+| MODULE CONSTRUCTOR LBRACE maybe_declarations RBRACE          { with_pos $loc (`Module ($2, $4)) }
 
 module_import:
-| OPEN qualified_constructor                                   { `Import (QualifiedName.of_path $2), pos() }
+| OPEN qualified_constructor                                   { with_pos $loc (`Import (QualifiedName.of_path $2)) }
 
 alien_datatype:
 | var COLON datatype SEMICOLON                                 { (make_untyped_binder $1, datatype $3) }
@@ -387,7 +387,7 @@ alien_datatypes:
 alien_block:
 | ALIEN VARIABLE STRING LBRACE alien_datatypes RBRACE          { let language     = $2 in
                                                                  let library_name = $3 in
-                                                                 `AlienBlock (language, library_name, $5), pos () }
+                                                                 with_pos $loc (`AlienBlock (language, library_name, $5)) }
 fun_declarations:
 | fun_declarations fun_declaration                             { $1 @ [$2] }
 | fun_declaration                                              { [$1] }
