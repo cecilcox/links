@@ -1,7 +1,7 @@
 (* Alias environment *)
 module AliasEnv = Env.String
 
-let alias_env : Types.tycon_environment =
+let alias_env : Types.FrontendTypeEnv.tycon_environment =
   List.fold_left
     AliasEnv.bind
     AliasEnv.empty

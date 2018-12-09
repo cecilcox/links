@@ -67,7 +67,7 @@ object(self)
   (*  inherit SugarTraversals.map as super*)
   inherit (TransformSugar.transform env) as super
 
-  val regex_type = Instantiate.alias "Regex" [] env.Types.tycon_env
+  val regex_type = Instantiate.alias "Regex" [] env.Types.FrontendTypeEnv.tycon_env
 
   method! phrase ({node=p; pos} as ph) = match p with
     | `InfixAppl ((tyargs, `RegexMatch flags), e1, {node=`Regex((`Replace(_,_) as r)); _}) ->
