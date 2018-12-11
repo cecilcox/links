@@ -4,10 +4,15 @@ open Operators
 
 module TyEnv = Env.String
 
+let lookup_var env var = snd (TyEnv.lookup env var)
+
+(* Must not be used for binding vars that come from opening/importing a module *)
+let bind_var env (var, t) = TyEnv.bind env (var, (None, t))
+
 let type_section env =
   function
-    | `Minus -> TyEnv.lookup env "-"
-    | `FloatMinus -> TyEnv.lookup env "-."
+    | `Minus -> lookup_var env "-"
+    | `FloatMinus -> lookup_var env "-."
     | `Project label ->
         let ab, a = Types.fresh_type_quantifier (`Any, `Any) in
         let rhob, (fields, rho, _) = Types.fresh_row_quantifier (`Any, `Any) in
@@ -16,18 +21,18 @@ let type_section env =
         let r = `Record (StringMap.add label (`Present a) fields, rho, false) in
           `ForAll (Types.box_quantifiers [ab; rhob; eb],
                    `Function (Types.make_tuple_type [r], e, a))
-    | `Name var -> TyEnv.lookup env var
+    | `Name var -> lookup_var env var
 
 let type_unary_op env tycon_env =
   let datatype = DesugarDatatypes.read ~aliases:tycon_env in function
     | `Minus      -> datatype "(Int) -> Int"
     | `FloatMinus -> datatype "(Float) -> Float"
-    | `Name n     -> TyEnv.lookup env n
+    | `Name n     -> lookup_var env n
 
 let type_binary_op env tycon_env =
   let datatype = DesugarDatatypes.read ~aliases:tycon_env in function
-  | `Minus        -> TyEnv.lookup env "-"
-  | `FloatMinus   -> TyEnv.lookup env "-."
+  | `Minus        -> lookup_var env "-"
+  | `FloatMinus   -> lookup_var env "-."
   | `RegexMatch flags ->
       let nativep  = List.exists ((=) `RegexNative)  flags
       and listp    = List.exists ((=) `RegexList)    flags
@@ -40,8 +45,8 @@ let type_binary_op env tycon_env =
 
   | `And
   | `Or           -> datatype "(Bool,Bool) -> Bool"
-  | `Cons         -> TyEnv.lookup env "Cons"
-  | `Name "++"    -> TyEnv.lookup env "Concat"
+  | `Cons         -> lookup_var env "Cons"
+  | `Name "++"    -> lookup_var env "Concat"
   | `Name ">"
   | `Name ">="
   | `Name "=="
@@ -52,8 +57,8 @@ let type_binary_op env tycon_env =
       let eb, e = Types.fresh_row_quantifier (`Any, `Any) in
         `ForAll (Types.box_quantifiers [ab; eb],
                  `Function (Types.make_tuple_type [a; a], e, `Primitive `Bool))
-  | `Name "!"     -> TyEnv.lookup env "Send"
-  | `Name n       -> TyEnv.lookup env n
+  | `Name "!"     -> lookup_var env "Send"
+  | `Name n       -> lookup_var env n
 
 let fun_effects t pss =
   let rec get_eff =
@@ -130,10 +135,10 @@ class transform (env : FrontendTypeEnv.t) =
     val formlet_env = TyEnv.empty
     val effect_row = fst (Types.unwrap_row env.FrontendTypeEnv.effect_row)
 
-    method get_var_env : unit -> FrontendTypeEnv.var_environment = fun () -> var_env
-    method get_module_env :  unit -> FrontendTypeEnv.module_environment = fun () -> module_env
+    method get_var_env : unit -> FrontendTypeEnv.qual_var_environment = fun () -> var_env
+    method get_module_env :  unit -> FrontendTypeEnv.qual_module_environment = fun () -> module_env
     method get_tycon_env : unit -> FrontendTypeEnv.tycon_environment = fun () -> tycon_env
-    method get_formlet_env : unit -> FrontendTypeEnv.var_environment = fun () -> formlet_env
+    method get_formlet_env : unit -> FrontendTypeEnv.qual_var_environment = fun () -> formlet_env
 
     method backup_envs = var_env, module_env, tycon_env, formlet_env, effect_row
     method restore_envs (var_env, module_env, tycon_env, formlet_env, effect_row) =
@@ -156,9 +161,9 @@ class transform (env : FrontendTypeEnv.t) =
           let module_t = StringMap.find moodule cur_module_env in
           lookup module_t.Types.modules module_t.Types.fields remainder in
       match var with
-        | `Ident x ->  TyEnv.lookup var_env x
+        | `Ident x ->  lookup_var var_env x
         | `Dot (moodule, remainder) ->
-          let module_t = TyEnv.lookup module_env moodule in
+          let module_t = snd (TyEnv.lookup module_env moodule) in
           lookup module_t.Types.modules module_t.Types.fields remainder
 
 
@@ -191,7 +196,7 @@ class transform (env : FrontendTypeEnv.t) =
       fun op ->
         (o, op, type_unary_op var_env tycon_env op)
 
-    method binop : binop -> ('self_type * binop * Types.datatype) =
+    method binop : binop -> ('self_type * binop * Types.datatype)  =
       fun op ->
         (o, op, type_binary_op var_env tycon_env op)
 
@@ -833,7 +838,7 @@ class transform (env : FrontendTypeEnv.t) =
         let (o, bs) = listu o (fun o b -> o#binding b) bs in
         let o = o#restore_envs envs in
         let (o, interface) = visit_module_t o (OptionUtils.val_of interface_opt) in
-        let new_module_env = Env.String.bind (o#get_module_env ()) (name, interface)  in
+        let new_module_env = Env.String.bind (o#get_module_env ()) (name, (None, interface))  in
         let o = o#with_module_env new_module_env in
         o, `Module (name, Some interface, bs)
       | `Import qname -> (o, `Import qname)
@@ -845,7 +850,7 @@ class transform (env : FrontendTypeEnv.t) =
     method binder : binder -> ('self_type * binder) =
       fun bndr ->
       assert (binder_has_type bndr);
-      let var_env = TyEnv.bind var_env (name_of_binder bndr, type_of_binder_exn bndr) in
+      let var_env = bind_var var_env (name_of_binder bndr, type_of_binder_exn bndr) in
       ({< var_env=var_env >}, bndr)
 
     method cp_phrase : cp_phrase -> ('self_type * cp_phrase * Types.datatype) =
@@ -867,14 +872,14 @@ class transform (env : FrontendTypeEnv.t) =
       | `Grab ((c, Some (`Input (_a, s), _grab_tyargs) as cbind), Some b, p) -> (* FYI: a = u *)
          let envs = o#backup_envs in
          let (o, b) = o#binder b in
-         let venv = TyEnv.bind (o#get_var_env ()) (c, s) in
+         let venv = bind_var (o#get_var_env ()) (c, s) in
          let o = {< var_env = venv >} in
          let (o, p, t) = o#cp_phrase p in
          let o = o#restore_envs envs in
          o, `Grab (cbind, Some b, p), t
       | `Give ((c, Some (`Output (_t, s), _tyargs) as cbind), e, p) ->
          let envs = o#backup_envs in
-         let o = {< var_env = TyEnv.bind (o#get_var_env ()) (c, s) >} in
+         let o = {< var_env = bind_var (o#get_var_env ()) (c, s) >} in
          let (o, e, _typ) = option o (fun o -> o#phrase) e in
          let (o, p, t) = o#cp_phrase p in
          let o = o#restore_envs envs in
@@ -907,9 +912,9 @@ class transform (env : FrontendTypeEnv.t) =
       | `Link (c, d) -> o, `Link (c, d), Types.unit_type
       | `Comp ({node = c, Some s; _} as bndr, left, right) ->
          let envs = o#backup_envs in
-         let (o, left, _typ) = {< var_env = TyEnv.bind (o#get_var_env ()) (c, s) >}#cp_phrase left in
+         let (o, left, _typ) = {< var_env = bind_var (o#get_var_env ()) (c, s) >}#cp_phrase left in
          let whiny_dual_type s = try Types.dual_type s with Invalid_argument _ -> raise (Invalid_argument ("Attempted to dualize non-session type " ^ Types.string_of_datatype s)) in
-         let (o, right, t) = {< var_env = TyEnv.bind (o#get_var_env ()) (c, whiny_dual_type s) >}#cp_phrase right in
+         let (o, right, t) = {< var_env = bind_var (o#get_var_env ()) (c, whiny_dual_type s) >}#cp_phrase right in
          let o = o#restore_envs envs in
          o, `Comp (bndr, left, right), t
       | `Comp _ -> assert false

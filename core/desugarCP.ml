@@ -1,7 +1,8 @@
 open Utility
 open Sugartypes
 
-module TyEnv = Env.String
+
+let bind_var = FrontendTypeEnv.bind_var_venv
 
 class desugar_cp env =
 object (o : 'self_type)
@@ -30,7 +31,7 @@ object (o : 'self_type)
                  add_pos e), t
          | `Grab ((c, Some (`Input (_a, s), grab_tyargs)), Some {node=x, Some u; _}, p) -> (* FYI: a = u *)
             let envs = o#backup_envs in
-            let venv = TyEnv.bind (TyEnv.bind (o#get_var_env ())
+            let venv = bind_var (bind_var (o#get_var_env ())
                                               (x, u))
                                   (c, s) in
             let o = {< var_env = venv >} in
@@ -57,7 +58,7 @@ object (o : 'self_type)
                  add_pos e), t
          | `Give ((c, Some (`Output (_t, s), give_tyargs)), Some e, p) ->
             let envs = o#backup_envs in
-            let o = {< var_env = TyEnv.bind (o#get_var_env ()) (c, s) >} in
+            let o = {< var_env = bind_var (o#get_var_env ()) (c, s) >} in
             let (o, e, _typ) = o#phrase e in
             let (o, p, t) = desugar_cp o p in
             let o = o#restore_envs envs in
@@ -74,7 +75,7 @@ object (o : 'self_type)
             o, `Var q, t
          | `Select ({node=c, Some s; _}, label, p) ->
             let envs = o#backup_envs in
-            let o = {< var_env = TyEnv.bind (o#get_var_env ()) (c, TypeUtils.select_type label s) >} in
+            let o = {< var_env = bind_var (o#get_var_env ()) (c, TypeUtils.select_type label s) >} in
             let (o, p, t) = desugar_cp o p in
             let o = o#restore_envs envs in
             let q = QualifiedName.of_name c in
@@ -86,7 +87,7 @@ object (o : 'self_type)
          | `Offer ({node=c, Some s; _}, cases) ->
             let desugar_branch (label, p) (o, cases) =
               let envs = o#backup_envs in
-              let o = {< var_env = TyEnv.bind (o#get_var_env ()) (c, TypeUtils.choice_at label s) >} in
+              let o = {< var_env = bind_var (o#get_var_env ()) (c, TypeUtils.choice_at label s) >} in
               let (o, p, t) = desugar_cp o p in
               let pat : pattern = add_pos (`Variant (label, Some (add_pos (`Variable (make_binder c (TypeUtils.choice_at label s) pos))))) in
               o#restore_envs envs, ((pat, add_pos p), t) :: cases in
@@ -104,8 +105,8 @@ object (o : 'self_type)
                         [add_pos (`Var q'); add_pos (`Var q'')]), Types.make_endbang_type
          | `Comp ({node=c, Some s; _}, left, right) ->
             let envs = o#backup_envs in
-            let (o, left, _typ) = desugar_cp {< var_env = TyEnv.bind (o#get_var_env ()) (c, s) >} left in
-            let (o, right, t) = desugar_cp {< var_env = TyEnv.bind (o#get_var_env ()) (c, Types.dual_type s) >} right in
+            let (o, left, _typ) = desugar_cp {< var_env = bind_var (o#get_var_env ()) (c, s) >} left in
+            let (o, right, t) = desugar_cp {< var_env = bind_var (o#get_var_env ()) (c, Types.dual_type s) >} right in
             let o = o#restore_envs envs in
             let left_block =
                let (q, q', q'') = QualifiedName.(of_name "accept", of_name "close", of_name c) in
