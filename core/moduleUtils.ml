@@ -6,11 +6,27 @@ let module_sep = "."
 
 let path_sep = ":"
 
-type term_shadow_table = string list stringmap
-type type_shadow_table = string list stringmap
-type shadow_table = string list stringmap
 
-let try_parse_file filename =
+
+
+
+(* Turns a program corresponding to a file into a module by binding the potential expression to a variable *)
+let modulify_program
+    toplevel_module_name
+    program 
+      : Sugartypes.binding =
+  let (bindings, phraseopt) = program in
+  let combined_bindings = match phraseopt with
+    | None -> bindings
+    | Some phrase ->
+      let any_pattern_node : Sugartypes.pattern = Sugartypes.with_dummy_pos `Any in
+      let phrase_binding : Sugartypes.binding =
+        Sugartypes.with_dummy_pos
+          (`Val ([], any_pattern_node, phrase, `Unknown, None)) in
+      bindings @ [phrase_binding] in
+  Sugartypes.with_dummy_pos (`Module (toplevel_module_name, None, combined_bindings) )
+
+let try_parse_file module_name filename : string * Sugartypes.binding =
   (* First, get the list of directories, with trailing slashes stripped *)
   let check_n_chop path =
     let dir_sep = Filename.dir_sep in
@@ -42,28 +58,12 @@ let try_parse_file filename =
         let candidate_filename =
           if x = "" then filename else (x ^ Filename.dir_sep ^ filename) in
         if Sys.file_exists candidate_filename then
-          Parse.parse_file Parse.program candidate_filename
+          let program, _ = Parse.parse_file Parse.program candidate_filename in
+          (candidate_filename, modulify_program module_name program)
         else
           loop xs) in
   loop poss_dirs
 
-let has_no_modules =
-object
-  inherit SugarTraversals.predicate as super
-
-  val has_no_modules = true
-  method satisfied = has_no_modules
-
-  method! bindingnode = function
-    | `Module _ -> {< has_no_modules = false >}
-    | b -> super#bindingnode b
-
-  method! datatypenode = function
-    | dt -> super#datatypenode dt
-
-  method! phrasenode = function
-    | pn -> super#phrasenode pn
-end
 
 
 let separate_modules =
@@ -282,4 +282,3 @@ let shadow_open module_plain module_fqn module_table term_ht type_ht =
 let lst_to_path = String.concat module_sep
 
 
-let contains_modules prog = not ((has_no_modules#program prog)#satisfied)
