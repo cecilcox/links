@@ -219,8 +219,6 @@ let add_attribute : Value.t * Value.t -> Value.t -> Value.t =
 let add_attributes : (Value.t * Value.t) list -> Value.t -> Value.t =
   List.fold_right add_attribute
 
-let prelude_tyenv = ref None (* :-( *)
-let prelude_nenv = ref None (* :-( *)
 
 let env : (string * (located_primitive * Types.datatype * pure)) list = [
   "+", int_op (+) PURE;
@@ -1601,7 +1599,7 @@ let env : (string * (located_primitive * Types.datatype * pure)) list = [
 (* HACK
 
    these functions are recursive, so type inference has no way of
-   knowing that they are in fact tame
+   knowing that they are in fact tame.
 *)
 let patch_prelude_funs tyenv =
   let _, prelude_module =
@@ -1609,11 +1607,11 @@ let patch_prelude_funs tyenv =
 
   let patched_prelude_module_fields =
     List.fold_right
-      (fun (name, t) env ->
-        if Env.String.has env name then
-          Env.String.bind env (name, (prelude_id, t))
+      (fun (name, t) sm ->
+        if StringMap.mem name sm then
+          StringMap.add name t sm
         else
-          env)
+          sm)
       [("map", datatype "((a) -b-> c, [a]) -b-> [c]");
         ("concatMap", datatype "((a) -b-> [c], [a]) -b-> [c]");
         ("sortByBase", datatype "((a) -b-> (|_::Base), [a]) -b-> [a]");
@@ -1624,7 +1622,8 @@ let patch_prelude_funs tyenv =
     {prelude_module with fields = patched_prelude_module_fields} in
 
   {tyenv with
-    module_env = Env.String.bind tyenv.module_env (BuiltinModules.prelude, patched_prelude_module)}
+    FrontendTypeEnv.module_env =
+      Env.String.bind tyenv.FrontendTypeEnv.module_env (BuiltinModules.prelude, (None, patched_prelude_module))}
 
 
 
@@ -1676,10 +1675,12 @@ let type_env : FrontendTypeEnv.qual_var_environment =
   let lib_id = Some (QualifiedName.of_name BuiltinModules.lib) in
   List.fold_right (fun (n, (_,t,_)) env -> Env.String.bind env (n, (lib_id, t))) env Env.String.empty
 
-let typing_env = {FrontendTypeEnv.var_env = type_env;
-                  tycon_env = alias_env;
-                  module_env = Env.String.empty;
-                  effect_row = Types.make_singleton_closed_row ("wild", `Present Types.unit_type)}
+
+let typing_env = {
+  FrontendTypeEnv.var_env = type_env;
+  tycon_env = alias_env;
+  module_env = Env.String.empty;
+  effect_row = Types.make_singleton_closed_row ("wild", `Present Types.unit_type)}
 
 let primitive_names = StringSet.elements (Env.String.domain type_env)
 
