@@ -1,6 +1,5 @@
 open Utility
 open Sugartypes
-open SugarConstructors.Make
 
 (*
    spawn {e}
@@ -12,6 +11,8 @@ open SugarConstructors.Make
    spawnWait (fun () {e})
 *)
 
+
+let dp = Sugartypes.dummy_position
 
 class desugar_processes env =
 object (o : 'self_type)
@@ -29,8 +30,9 @@ object (o : 'self_type)
         let o = o#with_effects outer_eff in
 
         let e : phrasenode =
-          fn_appl_node "spawnWait" [`Row inner_eff; `Type body_type; `Row outer_eff]
-            [fun_lit ~args:[(Types.make_tuple_type [], inner_eff)] `Unl [[]] body]
+          `FnAppl
+            ((`TAppl ((`Var "spawnWait", dp), [`Row inner_eff; `Type body_type; `Row outer_eff]), dp),
+             [(`FunLit (Some [(Types.make_tuple_type [], inner_eff)], `Unl, ([[]], body), `Unknown), dp)])
         in
           (o, e, body_type)
     | `Spawn (k, spawn_loc, body, Some inner_eff) ->
@@ -47,8 +49,8 @@ object (o : 'self_type)
         let spawn_loc_phr =
           match spawn_loc with
             | `ExplicitSpawnLocation phr -> phr
-            | `SpawnClient -> fn_appl "there" [] [tuple []]
-            | `NoSpawnLocation -> fn_appl "here" [] [tuple []] in
+            | `SpawnClient -> (`FnAppl ((`Var "there", dp), [(`TupleLit [], dp)]), dp)
+            | `NoSpawnLocation -> (`FnAppl ((`Var "here", dp), [(`TupleLit [], dp)]), dp) in
 
         let spawn_fun =
           match k with
@@ -61,9 +63,10 @@ object (o : 'self_type)
          * corresponded to the spawn type. *)
 
         let e : phrasenode =
-          fn_appl_node spawn_fun [`Row inner_eff; `Type body_type; `Row outer_eff]
-             [fun_lit ~args:[(Types.make_tuple_type [], inner_eff)] `Unl [[]] body;
-              spawn_loc_phr]
+          `FnAppl
+            ((`TAppl ((`Var spawn_fun, dp), [`Row inner_eff; `Type body_type; `Row outer_eff]), dp),
+             [(`FunLit (Some [(Types.make_tuple_type [], inner_eff)], `Unl, ([[]], body), `Unknown), dp);
+              spawn_loc_phr])
         in
           (o, e, process_type)
     | `Receive (cases, Some t) ->
@@ -73,9 +76,12 @@ object (o : 'self_type)
             match StringMap.find "hear" fields with
               | (`Present mbt) ->
                   o#phrasenode
-                    (`Switch (fn_appl "recv" [`Type mbt; `Row other_effects] [],
-                              cases,
-                              Some t))
+                    (`Switch
+                       ((`FnAppl
+                           ((`TAppl ((`Var "recv", dp), [`Type mbt; `Row other_effects]), dp),
+                            []), dp),
+                        cases,
+                        Some t))
               | _ -> assert false
         end
     | e -> super#phrasenode e

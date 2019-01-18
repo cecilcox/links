@@ -25,7 +25,7 @@ let refine_bindings : binding list -> binding list =
       (* group: the group we're currently working on, groups = the groups we've processed *)
       let group, groups =
         List.fold_right
-          (fun ({node=binding;_} as bind) (thisgroup, othergroups) ->
+          (fun (binding,_ as bind) (thisgroup, othergroups) ->
             match binding with
               (* Modules & qualified imports will have been eliminated by now. Funs
                * aren't introduced yet. *)
@@ -56,8 +56,7 @@ let refine_bindings : binding list -> binding list =
       = fun defs ->
         let defs = List.map
           (function
-            | {node=`Fun (bndr, _, (_, funlit), _, _); _} ->
-               (name_of_binder bndr, funlit)
+            | `Fun ((name,_,_), _, (_, funlit), _, _), _ -> (name, funlit)
             | _ -> assert false) defs in
         let names = StringSet.from_list (List.map fst defs) in
           List.map
@@ -69,13 +68,11 @@ let refine_bindings : binding list -> binding list =
     let groupFuns pos (funs : binding list) : binding list =
       (* Unwrap from the bindingnode type *)
       let unFun = function
-        | {node = `Fun (b, lin, (_, funlit), location, dt); pos} ->
-           (b, lin, (([], None), funlit), location, dt, pos)
+        | `Fun (b, lin, (_, funlit), location, dt), pos -> (b, lin, (([], None), funlit), location, dt, pos)
         | _ -> assert false in
       let find_fun name =
         List.find (function
-                     | {node=`Fun (bndr, _, _, _, _); _} ->
-                        name = name_of_binder bndr
+                     | `Fun ((n,_,_), _, _, _, _), _ when name = n -> true
                      | _ -> false)
           funs in
       let graph = callgraph funs in
@@ -84,11 +81,9 @@ let refine_bindings : binding list -> binding list =
           (fun scc ->
              let funs = List.map (find_fun ->- unFun) scc in
                match funs with
-                 | [(bndr, lin, ((tyvars, _), body), location, dt, pos)]
-                     when not (StringSet.mem (name_of_binder bndr)
-                                             (Freevars.funlit body)) ->
-                    with_pos pos (`Fun (bndr, lin, (tyvars, body), location, dt))
-                 | _ -> with_pos pos (`Funs (funs)))
+                 | [(((n, _, _) as b), lin, ((tyvars, _), body), location, dt, pos)]
+                     when not (StringSet.mem n (Freevars.funlit body)) -> `Fun (b, lin, (tyvars, body), location, dt), pos
+                 | _ -> `Funs (funs), pos)
 
           sccs
     in
@@ -99,7 +94,7 @@ let refine_bindings : binding list -> binding list =
            Compute the position corresponding to the whole collection
            of functions.
         *)
-      | {node=`Fun _; _}::_ as funs -> groupFuns (Lexing.dummy_pos, Lexing.dummy_pos, None) funs
+      | (`Fun _, _)::_ as funs -> groupFuns (Lexing.dummy_pos, Lexing.dummy_pos, None) funs
       | binds -> binds in
     concat_map groupBindings initial_groups
 
@@ -119,13 +114,13 @@ object (self)
   method references =
     StringSet.elements (StringSet.from_list (List.rev references))
 
-  method! datatypenode = function
+  method! datatype = function
     | `TypeApplication (tyAppName, argList) ->
           let o =
             List.fold_left (fun acc ta -> acc#type_arg ta) self argList
           in
             o#add tyAppName
-    | x -> super#datatypenode x
+    | x -> super#datatype x
 
   method! row_var = function
     | `Open (x, _, _) -> self#add x
@@ -144,15 +139,15 @@ let subst_ty_app refFrom refTo =
 object(_self)
   inherit SugarTraversals.map as super
 
-  method! datatypenode : datatypenode -> datatypenode = function
+  method! datatype : datatype -> datatype = function
     | `TypeApplication (tyAppName, _) as tyApp ->
         if tyAppName = refFrom then `TypeVar (refTo, Some default_subkind, `Rigid)
-        else super#datatypenode tyApp
-    | dt -> super#datatypenode dt
+        else super#datatype tyApp
+    | dt -> super#datatype dt
 end
 
 let substTyApp ty refFrom refTo =
-  (subst_ty_app refFrom refTo)#datatypenode ty
+  (subst_ty_app refFrom refTo)#datatype ty
 
 
 (* Type variable substitution *)
@@ -166,23 +161,23 @@ object(self)
    *  - This is the one found in the application
    *)
 
-  method! datatypenode : datatypenode -> datatypenode =
+  method! datatype : datatype -> datatype =
     fun dt ->
       match dt with
         | `TypeVar (n, _, _) when n = varFrom ->
             (match taTo with
-               | `Type {node = dtTo; _} -> dtTo
-               | _ -> super#datatypenode dt)
-        | `Forall (qs, {node = quantDt; pos}) ->
+               | `Type dtTo -> dtTo
+               | _ -> super#datatype dt)
+        | `Forall (qs, quantDt) ->
             (match taTo with
-              | `Type {node = `TypeVar (n, _, _); _} ->
+              | `Type (`TypeVar (n, _, _)) ->
                   let qs' =
                     List.map (fun (tv, k, f as q) ->
                       if tv = varFrom then
                         (n, k, f)
-                      else q) qs in `Forall (qs', with_pos pos (self#datatypenode quantDt))
-              | _ -> super#datatypenode dt)
-        | _ -> super#datatypenode dt
+                      else q) qs in `Forall (qs', self#datatype quantDt)
+              | _ -> super#datatype dt)
+        | _ -> super#datatype dt
 
   method! fieldspec : fieldspec -> fieldspec =
     fun fs ->
@@ -203,14 +198,14 @@ object(self)
 end
 
 let substTyArg varFrom taTo ty =
-  (subst_ty_var varFrom taTo)#datatypenode ty
+  (subst_ty_var varFrom taTo)#datatype ty
 
 (* Type inlining *)
 let inline_ty toFind inlineArgs toInline =
 object(_self)
   inherit SugarTraversals.map as super
 
-  method! datatypenode : datatypenode -> datatypenode =
+  method! datatype : datatype -> datatype =
     fun dt ->
       match dt with
         | `TypeApplication (tyAppName, argList) as tyApp ->
@@ -232,13 +227,13 @@ object(_self)
                 (* Arity error, let something else pick it up *)
                  tyApp
             else
-              super#datatypenode dt
-        | x -> super#datatypenode x
+              super#datatype dt
+        | x -> super#datatype x
 
 end
 
 let inlineTy ty tyRef inlineArgs refinedTy =
-  (inline_ty tyRef inlineArgs refinedTy)#datatypenode ty
+  (inline_ty tyRef inlineArgs refinedTy)#datatype ty
 
 (* Similar to refine_bindings, RefineTypeBindings.refineTypeBindings finds
  * sequences of mutually recursive types, and rewrites them as explicit mus. *)
@@ -262,7 +257,7 @@ module RefineTypeBindings = struct
   let initialGroups : binding list -> binding list list =
     fun bindings ->
       let group, groups =
-        List.fold_right (fun ({node=binding; _} as bind) (currentGroup, otherGroups) ->
+        List.fold_right (fun (binding, _ as bind) (currentGroup, otherGroups) ->
 	  match binding with
           | `Handler _  (* Desugared at this point *)
           | `Module _
@@ -307,14 +302,14 @@ module RefineTypeBindings = struct
     fun (_, _, (dt, _)) -> dt
 
   (* Updates the datatype in a type binding. *)
-  let updateDT : type_ty -> datatypenode -> type_ty =
-    fun (name, tyArgs, ({pos; _}, unsugaredDT)) newDT ->
-      (name, tyArgs, ((with_pos pos newDT), unsugaredDT))
+  let updateDT : type_ty -> datatype -> type_ty =
+    fun (name, tyArgs, (_, unsugaredDT)) newDT ->
+      (name, tyArgs, (newDT, unsugaredDT))
 
   let referenceInfo : binding list -> type_hashtable -> reference_info =
     fun binds typeHt ->
       let ht = Hashtbl.create 30 in
-      List.iter (fun {node = bind; pos} ->
+      List.iter (fun (bind, pos) ->
         match bind with
           | `Type (name, _, _ as tyTy) ->
               let refs = typeReferences tyTy typeHt in
@@ -354,7 +349,7 @@ module RefineTypeBindings = struct
         if rts || List.length sccs > 1 then
           let muName = gensym ~prefix:"refined_mu" () in
             ((tyName, muName) :: env, `Mu (muName, sugaredDT))
-        else (env, sugaredDT.node) in
+        else (env, sugaredDT) in
       (* Now, we go through the list of type references.
        * If the reference is in the substitution environment, we replace it
        * with the mu variable we've created.
@@ -374,7 +369,7 @@ module RefineTypeBindings = struct
                let (_, arg_list, _) = to_refine in
                let to_refine_args = List.map fst arg_list in
                let (_, _, (refinedRef, _)) = refineType to_refine env' ht sccs ri in
-               inlineTy curDataTy tyRef to_refine_args refinedRef.node)
+               inlineTy curDataTy tyRef to_refine_args refinedRef)
         else
           curDataTy
       ) sccs dt in
@@ -391,11 +386,11 @@ module RefineTypeBindings = struct
         thd3 (Hashtbl.find ri name) in
       List.map (fun name ->
         let res = refineType (Hashtbl.find ht name) [] ht sccs ri in
-        with_pos (getPos name) (`Type res)
+        (`Type res, getPos name)
       ) sccs
 
   let isTypeGroup : binding list -> bool = function
-    | {node = `Type _; _} :: _xs -> true
+    | (`Type _, _) :: _xs -> true
     | _ -> false
 
   (* Performs type refinement on a binding group. *)
@@ -403,8 +398,8 @@ module RefineTypeBindings = struct
     | binds when isTypeGroup binds ->
       (* Create a hashtable mapping names to type bindings. *)
       let ht = Hashtbl.create 30 in
-      List.iter (fun {node; _} ->
-        match node with
+      List.iter (fun (x, _) ->
+        match x with
           | `Type (name, _, _ as tyTy) ->
             Hashtbl.add ht name tyTy;
           | _ -> assert false;

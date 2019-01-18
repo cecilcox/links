@@ -1,6 +1,12 @@
 (** Whether to turn on debug printing *)
 let debugging_enabled = Settings.add_bool ("debug", false, `User)
 
+(**
+ Whether to run the interactive loop
+ (default is true)
+*)
+let interacting = Settings.add_bool ("interacting", true, `System)
+
 (** [true] if we're in web mode *)
 let web_mode = Settings.add_bool ("web_mode", false, `System)
 
@@ -179,7 +185,7 @@ let websocket_url = Settings.add_string("websocket_url", "/ws/", `User)
 
 (* For testing only. If this is set, programs are not executed, but
    Links terminates after type-checking and compiling to the IR. *)
-let typecheck_only = Settings.add_bool ("typecheck_only", false, `System)
+let typecheck_only = Settings.add_bool ("typecheck_only", false, `User)
 
 (* Handlers stuff *)
 module Handlers = struct

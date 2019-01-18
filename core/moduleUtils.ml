@@ -1,6 +1,5 @@
 open Utility
 open Printf
-open Sugartypes
 
 let module_sep = "."
 
@@ -59,9 +58,9 @@ object
     | `Module _ -> {< has_no_modules = false >}
     | b -> super#bindingnode b
 
-  method! datatypenode = function
+  method! datatype = function
     | `QualifiedTypeApplication _ -> {< has_no_modules = false >}
-    | dt -> super#datatypenode dt
+    | dt -> super#datatype dt
 
   method! phrasenode = function
     | `QualifiedVar _ -> {< has_no_modules = false >}
@@ -72,7 +71,7 @@ end
 let separate_modules =
   List.fold_left (fun (mods, binds) b ->
     match b with
-      | {node = `Module _; _} as m -> (m :: mods, binds)
+      | (`Module _, _) as m -> (m :: mods, binds)
       | b -> (mods, b :: binds)) ([], [])
 
 type module_info = {
@@ -100,7 +99,7 @@ let get_pat_vars () =
       | `Record (ls, p_opt) ->
           let o1 = self#list (fun o (_, p) -> o#pattern p) ls in
           o1#option (fun o p -> o#pattern p) p_opt
-      | `Variable bndr -> self#add_binding (Sugartypes.name_of_binder bndr)
+      | `Variable (n, _, _) -> self#add_binding n
       | p -> super#patternnode p
   end
 
@@ -140,10 +139,10 @@ let get_data_constructors init_constrs =
             {< constrs = StringSet.add constr constrs >}
         method get_constrs = StringSet.elements constrs
 
-        method! datatypenode = function
+        method! datatype = function
             | `Variant (xs, _) ->
                 self#list (fun o (lbl, _) -> o#add_constr lbl) xs
-            | dt -> super#datatypenode dt
+            | dt -> super#datatype dt
     end
 
 let create_module_info_map program =
@@ -158,7 +157,7 @@ let create_module_info_map program =
     (* Recursively traverse a list of modules *)
     let rec traverse_modules = function
       | [] -> []
-      | {node=`Module (submodule_name, mod_bs);_} :: bs ->
+      | (`Module (submodule_name, mod_bs), _) :: bs ->
           (* Recursively process *)
           let new_path = if name = "" then [] else parent_path @ [name] in
           create_and_add_module_info new_path submodule_name mod_bs;
@@ -169,16 +168,14 @@ let create_module_info_map program =
     (* Getting binding names -- we're interested in function and value names *)
     let rec get_binding_names = function
       | [] -> []
-      | {node = `Val (pat, _, _, _); _} :: bs ->
-         (get_pattern_variables pat) @ get_binding_names bs
-      | {node = `Fun (bndr, _, _, _, _); _} :: bs ->
-         Sugartypes.name_of_binder bndr :: (get_binding_names bs)
+      | (`Val (_, pat, _, _, _), _) :: bs -> (get_pattern_variables pat) @ get_binding_names bs
+      | (`Fun ((n, _, _), _, _, _, _), _) :: bs -> n :: (get_binding_names bs)
       | _ :: bs -> get_binding_names bs in (* Other binding types are uninteresting for this pass *)
 
     (* Getting type names -- we're interested in typename decls *)
     let rec get_type_names = function
       | [] -> []
-      | { node = `Type (n, _, _); _} :: bs -> n :: (get_type_names bs)
+      | (`Type (n, _, _), _) :: bs -> n :: (get_type_names bs)
       | _ :: bs -> get_type_names bs in
 
     (* Gets data constructors for variants *)
