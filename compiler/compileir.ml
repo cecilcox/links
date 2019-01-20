@@ -313,8 +313,7 @@ let modularize comp_unit =
 let cmp2 modname prog =
   LambdatoNative.compile (Ident.create_persistent (Misc.chop_extensions modname))  prog  "a.out"
 
-let compile parse_and_desugar filename =
-  let ((bs,tc) as program, tenv) = parse_and_desugar filename in
+let compile program filename =
   let () = print_endline (Ir.show_program program)
   in
   (*  hello_world ();*)

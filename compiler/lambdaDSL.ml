@@ -148,7 +148,9 @@ end
   let lsetglobal : string -> lambda =
     fun name ->
       lprim (Psetglobal (Ident.create_persistent name)) []
-
+  let lprogram : string -> lambda -> lambda =
+    fun name code ->
+      lprim (Psetglobal (Ident.create_persistent name)) [code]
 
   let lcons : ?elemtype:[< `Generic] -> lambda -> lambda list -> lambda =
     fun ?(elemtype=`Generic) x xs ->

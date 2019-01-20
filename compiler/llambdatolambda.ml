@@ -251,8 +251,8 @@ let lambda_of_llambda : string -> globalenv * effenv -> LLambda.program -> Lambd
        let module_name = lgetglobal module_name in
        begin
          match get_set with
-         | `Set -> lprim (set_field_imm num) [module_name ; lvar ident]
-         | `Get -> lprim (field num) [ module_name ]
+         | `Set -> lvar ident
+         | `Get -> lvar ident
        end
     (*| `SetOOId (module_name, effect_name) -> leffect (Printf.sprintf "%s.%s" module_name effect_name)*)
     | _ -> assert false

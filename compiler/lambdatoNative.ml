@@ -8,7 +8,7 @@ let initialise ?(includes=[]) () =
   Clflags.nopervasives := false;      (* Whether to include the Pervasives module *)
   Clflags.dump_lambda := true;       (* Dump lambda ir *)
   Clflags.dump_clambda := true;      (* Dump clambda ir *)
-  Clflags.dump_cmm := true;          (* Dump c-- code *)
+  Clflags.dump_cmm := false;          (* Dump c-- code *)
   Clflags.keep_asm_file := false;
   Clflags.native_code := true;        (* Whether to use the native or byte code compilation pipeline *)
   Clflags.opaque := true;
