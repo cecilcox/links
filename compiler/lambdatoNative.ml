@@ -61,7 +61,7 @@ let compile modident prog out =
   let comp_unit =
     let modname = Ident.name modident in
     let basedir = Filename.dirname out in
-    let cmxfile = (Sys.getcwd  () ^ (String.uncapitalize_ascii modname) ^ ".cmx") in
+    let cmxfile = (Sys.getcwd  () ^ "/" ^ (String.uncapitalize_ascii modname) ^ ".cmx") in
     (modname, prog, cmxfile, "<none>")
   in
   let (_, _, cmxfile, _) =

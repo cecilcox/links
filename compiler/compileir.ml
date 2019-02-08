@@ -44,13 +44,14 @@ let two : unit -> Lambda.lambda =
 
 
 
-let module_ident =  Ident.create_persistent "const2"
+let module_ident =  Ident.create_persistent "Fac.links"
 
 let emptyprog : Lambda.program = {module_ident = module_ident ; main_module_block_size = 0; required_globals = Ident.Set.empty ; code = empty () }
 
-let makeprog : Lambda.lambda -> Lambda.program =
-  fun lam ->
-  {module_ident = module_ident ; main_module_block_size = 0; required_globals = Ident.Set.empty ; code = lam }
+let makeprog : string -> int -> Lambda.lambda -> Lambda.program =
+  fun modname num_globals lam ->
+  let modname = Ident.create_persistent modname in
+  {module_ident = modname ; main_module_block_size = num_globals; required_globals = Ident.Set.empty ; code = lam }
 
 
 
@@ -318,10 +319,10 @@ let compile program filename =
   in
   (*  hello_world ();*)
   let target = Settings.get_value Basicsettings.output_file |> FileInfo.make_fileinfo |> FileInfo.filename in
-  let lam = (snd (lambda_of_ir filename program)) in
+  let (num_globals, lam) = (lambda_of_ir filename program) in
   let () = udump_lambda lam in
   let () = LambdatoNative.initialise () in
-  let cmpfile = cmp2 filename (makeprog lam) in
+  let cmpfile = cmp2 filename (makeprog filename num_globals lam) in
   ()
 
 
