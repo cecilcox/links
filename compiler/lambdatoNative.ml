@@ -33,17 +33,24 @@ let compile modident prog out =
     (modname, prog, cmxfile, cmifile)
   in
   let gen_cmifile (modname, prog, cmxfile, _) =
-    let prefix = Misc.chop_extensions cmxfile in
+    let prefix = cmxfile in
     let _ = Env.save_signature ~deprecated:None [] modname cmxfile in
     let cmifile = Printf.sprintf "%s.cmi" prefix in
     (modname, prog, cmxfile, cmifile)
   in
   let save_cmxfile ((_, _, cmxfile, _) as comp_unit) =
+    print_endline cmxfile;
     Compilenv.save_unit_info cmxfile;
     comp_unit
   in
   let asm_compile ((_, prog, cmxfile, _) as comp_unit) =
-    let target_wo_ext = Misc.chop_extensions cmxfile in
+    let target_wo_ext =  cmxfile in
+    let () =
+      Printexc.register_printer
+      (function
+        | Compilenv.Error (Illegal_renaming (a, b, c)) -> Some (Printf.sprintf "Foo(%s,%s,%s)" a b c)
+        | _ -> None (* for other exceptions *)
+      ) in
     Asmgen.compile_implementation_clambda target_wo_ext ppf prog;
     comp_unit
   in

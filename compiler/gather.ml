@@ -152,8 +152,13 @@ module TraverseIr = struct
       | `Let (b, (_, tc)) ->
          (o#binder b)#tail_computation tc
       (*| `Alien (b,_) -> o#binder b*)
-      | `Fun (b, (_, args, comp), _, _) ->
+      | `Fun (b, (_, args, comp), None, _) ->
          let o = o#binder b in
+         let o = List.fold_left (fun o b -> o#binder b) o args in
+         o#computation comp
+      | `Fun (b, (_, args, comp), Some env_b, _) ->
+         let o = o#binder b in
+         let o = o#binder env_b in
          let o = List.fold_left (fun o b -> o#binder b) o args in
          o#computation comp
       | `Rec ((b, (_, args, comp), _, _) :: rest) ->

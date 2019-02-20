@@ -370,8 +370,8 @@ let run_file prelude ((valenv,nenv,tyenv) as envs) filename =
   in
   let tenv2 = (Var.varify_env (nenv, tyenv.Types.var_env)) in
   let (program, _) = parse envs filename in
-  let (globals, _) = Backend.transform_program tenv2 program in
-  Links_compiler.Compileir.compile program filename
+  let (globals, program) = Backend.transform_program tenv2 program in
+  Links_compiler.Compileir.compile (globals, program) filename
 
 
 

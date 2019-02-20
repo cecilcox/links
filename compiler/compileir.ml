@@ -312,13 +312,12 @@ let modularize comp_unit =
   CompilationUnit.make_linkable_unit cmxfile
 
 let cmp2 modname prog =
-  LambdatoNative.compile (Ident.create_persistent (Misc.chop_extensions modname))  prog  "a.out"
+  LambdatoNative.compile (Ident.create_persistent (String.capitalize_ascii modname))  prog  "a.out"
 
 let compile program filename =
   let () = print_endline (Ir.show_program program)
   in
   (*  hello_world ();*)
-  let target = Settings.get_value Basicsettings.output_file |> FileInfo.make_fileinfo |> FileInfo.filename in
   let (num_globals, lam) = (lambda_of_ir filename program) in
   let () = udump_lambda lam in
   let () = LambdatoNative.initialise () in

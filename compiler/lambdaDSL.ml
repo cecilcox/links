@@ -18,8 +18,8 @@ end
   let lvar : Ident.t -> lambda
     = fun i -> Lvar i
 
-  let lconst : structured_constant -> lambda
-    = fun c -> Lconst c
+  let lconst : structured_constant -> lambda =
+    fun c -> Lconst c
 
   let lapply f xs =
     let lapp =
@@ -178,12 +178,13 @@ end
 
   let lookup : string -> string -> lambda =
     fun module_name fun_name ->
+      Compmisc.init_path false;
       let env = Compmisc.initial_env () in
       let lfun, _ = Env.lookup_value
         (Longident.(Ldot (Lident module_name, fun_name)))
         env
     (*Env.empty*)
-    in transl_path Env.empty lfun
+    in transl_value_path Env.empty lfun
 		    
   let pervasives : string -> lambda =
     fun fun_name -> lookup "Pervasives" fun_name

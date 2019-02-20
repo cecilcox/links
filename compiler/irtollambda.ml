@@ -59,7 +59,8 @@ let ir_llambda : string -> globals -> name_env -> effenv -> Ir.program -> Llambd
   | `Variable var -> if is_primitive var then Some var else None
   | `TAbs (_,v)
   | `TApp (v,_) -> is_primitive_function v
-  | v -> error ("Unknown, possibly primitive, node:\n " )
+  | `Closure (_,_,v) -> None
+  | v -> error ("Unknown, possibly primitive, node:" ^ (Ir.show_value v) )
   in
   let ident_of_var var =
     try
@@ -113,6 +114,7 @@ let ir_llambda : string -> globals -> name_env -> effenv -> Ir.program -> Llambd
     (*-|  'Erase (fields, record) ->-*)
     |  `Inject (label, v , typ) -> `Inject (label, value v, typ)
     |  `TAbs (vars, v) -> value v
+    |  `TApp (`Closure (_,_,v), typs) -> value v    
     |  `TApp (v, typs) -> value v
     (*|  'XmlNode          ->*)
     |  `ApplyPure (f, args)  -> tail_computation (`Apply (f, args))
