@@ -62,9 +62,18 @@ let compile modident prog out =
     (*Sys.command (Printf.sprintf "ls -al %s" (List.hd cmxs));
     Sys.command "sleep 2";
     Sys.command (Printf.sprintf "cat %s" (List.hd cmxs));*)
+    let () =
+      Printexc.register_printer
+      (function
+        | Asmlink.Error (Missing_implementations gs) -> Some ("HELP" ^ (String.concat "\n" (snd (List.nth  gs 0))))
+        | _ -> None (* for other exceptions *)
+      ) in
     (Asmlink.link ppf cmxs out)
   (* Pipeline *)
   in
+  let builtins =
+    (* assumes the builtins exist in the current working directory *)
+    Filename.concat (Sys.getcwd ()) "builtins.cmx" in  
   let comp_unit =
     let modname = Ident.name modident in
     let basedir = Filename.dirname out in
@@ -78,4 +87,4 @@ let compile modident prog out =
     |> save_cmxfile
     |> asm_compile
   in
-  assemble_exec [cmxfile] out
+  assemble_exec [cmxfile ; builtins] out

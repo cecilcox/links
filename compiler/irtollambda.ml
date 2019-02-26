@@ -114,12 +114,11 @@ let ir_llambda : string -> globals -> name_env -> effenv -> Ir.program -> Llambd
     (*-|  'Erase (fields, record) ->-*)
     |  `Inject (label, v , typ) -> `Inject (label, value v, typ)
     |  `TAbs (vars, v) -> value v
-    |  `TApp (`Closure (_,_,v), typs) -> value v    
     |  `TApp (v, typs) -> value v
     (*|  'XmlNode          ->*)
     |  `ApplyPure (f, args)  -> tail_computation (`Apply (f, args))
     |  `Coerce (v, typs) -> value v
-    (*|  `Closure (vr, tyargs, vl) *)
+    |  `Closure (vr, tyargs, vl) -> `Apply (get_global (ident_of_var vr), [(value vl)])
     |  value -> error ("Unimplemented case :\n")
   and tail_computation : Ir.tail_computation -> Llambda.program = function
     |  `Return v -> value v
@@ -156,9 +155,17 @@ let ir_llambda : string -> globals -> name_env -> effenv -> Ir.program -> Llambd
        b_ret body
   and binding : Ir.binding -> LLambda.program -> LLambda.program = fun binding body -> match binding with
     |  `Let (binder, (tyvars, tailcomp) ) -> `Let (ident_of_binder binder, tail_computation tailcomp, body)
-    |  `Fun (binder, (tyvars, binderlist, comp), bindop, loc) -> let binder = ident_of_binder binder in
+    |  `Fun (binder, (tyvars, binderlist, comp), None, loc) -> let binder = ident_of_binder binder in
                                                                  let binderlist =
                                                                     if List.length binderlist > 0 then
+                                                                      List.map ident_of_binder binderlist
+                                                                    else
+                                                                      [fresh_identifier "_unit"]
+                                                                 in `Let(binder, `Fun(binderlist, computation comp), set_global binder)
+    |  `Fun (binder, (tyvars, binderlist, comp), Some envBinder, loc) -> let binder = ident_of_binder binder in
+                                                                 let binderlist = (envBinder :: binderlist) in
+                                                                 let binderlist =
+                                                                    if List.length binderlist > 1 then
                                                                       List.map ident_of_binder binderlist
                                                                     else
                                                                       [fresh_identifier "_unit"]
@@ -189,10 +196,22 @@ let ir_llambda : string -> globals -> name_env -> effenv -> Ir.program -> Llambd
     | `Let (b, (_, tc)) ->
        let b = ident_of_binder b in
        `Let (b, tail_computation tc, set_global b)
-    | `Fun (b, (_, bs, comp), _, _) ->
+    | `Fun (b, (_, bs, comp), None, _) ->
        let b = ident_of_binder b in
        let bs =
          if List.length bs > 0 then
+           List.map ident_of_binder bs
+         else
+           [fresh_identifier "_unit"]
+       in
+       let comp = computation comp in
+       let global = set_global b in
+      `Let (b, `Fun (bs, comp), global)
+    | `Fun (b, (_, bs, comp), Some benv, _) ->
+       let b = ident_of_binder b in
+       let bs = benv :: bs in
+       let bs =
+         if List.length bs > 1 then
            List.map ident_of_binder bs
          else
            [fresh_identifier "_unit"]

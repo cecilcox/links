@@ -577,4 +577,5 @@ let lambda_of_ir module_name prog =
 (*  let ir_translator = new translator (invert env) in
   ir_translator#program "Helloworld" prog*)
   let llambda = Irtollambda.ir_llambda module_name globals nenv openv prog in
+  print_endline (LLambda.show_program llambda);
   (1 + IntMap.size globals, Llambdatolambda.lambda_of_llambda module_name (globals,openv) llambda)

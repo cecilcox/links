@@ -6,17 +6,25 @@ open Links_core
 type identifier = { name : string
                   ; uid  : int
                   }
+  [@@deriving show]
+
 
 
 let string_of_identifier {name=name ; uid=uid} = name ^ (string_of_int uid)
 
 type name = Ir.name
+  [@@deriving show]
+
 
 
 type 'a name_map = 'a Ir.name_map
+  [@@deriving show]
+
 
 
 type constant = Ir.constant
+  [@@deriving show]
+
 
 
 type llambda =
@@ -68,7 +76,11 @@ and binary_operation =
   | `Or
   ] * Types.primitive option
 and clause = [`Effect of identifier * int | `Exception of int | `Regular of int] * identifier * llambda
+  [@@deriving show]
+
 
 
 type program = llambda
+  [@@deriving show]
+
 
