@@ -5,6 +5,10 @@ open Links_core
 type globalenv = int Utility.intmap
 type effenv    = int Utility.stringmap
 
+(*let htvals : (string * Lambda.lambda) list ref = ref []
+let makelambdatable varname keyvalues : string -> (string * Lambda.lambda) list -> Lambda.lambda = 
+    List.fold_right (fun (key,value) lam -> LambdaDSL.lif ((Lambda.Pccall (LambdaDSL.prim_binary_op "caml_equal")) (lstring varname) (lstring key) ) lam ) (lapply (pervasives "failwith") [lstring "Fatal error: Pattern-matching failed"]) keyvalues
+*)
 let lambda_of_llambda : string -> globalenv * effenv -> LLambda.program -> Lambda.lambda =
   fun module_name (globals,effenv) prog ->
   let open LLambda in
@@ -247,11 +251,11 @@ let lambda_of_llambda : string -> globalenv * effenv -> LLambda.program -> Lambd
        in
        lprim prim args
     | `Global (ident, num, module_name, get_set) ->
-       let ident = identifier ident in
+       let ident2 = identifier ident in
        let module_name = lgetglobal module_name in
        begin
          match get_set with
-         | `Set -> lprim (set_field_imm num) [module_name ; lvar ident]
+         | `Set -> (*htvals := (ident.name, lprim (field num) [ module_name ]) :: !htvals ;*)  lprim (set_field_imm num) [module_name ; lvar ident2]
          | `Get -> lprim (field num) [ module_name ]
        end
     (*| `SetOOId (module_name, effect_name) -> leffect (Printf.sprintf "%s.%s" module_name effect_name)*)

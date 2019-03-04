@@ -11,7 +11,12 @@ open Utility
 
 
 
+
 module Llambda = LLambda
+
+
+
+
 
 let is_primitive   : Var.var -> bool = Lib.is_primitive_var
 let primitive_name : Var.var -> string option =
@@ -130,17 +135,14 @@ let ir_llambda : string -> globals -> name_env -> effenv -> Ir.program -> Llambd
                            in begin
                          	  match is_primitive_function f with
                          	  | None -> `Apply (value f, vals)
-                         	  | Some prim -> `Primitive (let fp = match primitive_name prim with
-                                          | Some "print" -> "print"
-                         	                | Some name -> name
-                         	                | None -> error ("Cannot match function name")
-                         	                in
-                         	                  begin
+                         	  | Some prim -> let fp = match primitive_name prim with
+                                          | Some name -> name
+                                          | None -> error ("Cannot match function name")
+                                          in begin
                          	              	    match binop_of_string fp with
-                         	              	    | Some binop -> `BinOp (binop, vals)
-                         	              	    | None -> if fp = "print" then `Print vals else error("No such binary operation " ^ fp)
-                         	                | _ -> `FnApply (fp, vals)
-                         	                  end)
+                         	              	    | Some binop -> `Primitive (`BinOp (binop, vals))
+                         	              	    | None -> `Apply (`Primitive (`Builtin fp), vals)
+                         	                end
                               end
     |  `Special s -> error("Special Not implemented ")
     |  `Case (v, cases, def) -> let translate (b,c) = (ident_of_binder b, computation c) in
@@ -173,10 +175,14 @@ let ir_llambda : string -> globals -> name_env -> effenv -> Ir.program -> Llambd
     | `Rec funs ->
        let funs =
          List.fold_right
-           (fun (b, (_, bs, comp),_,_) funs ->
+           (fun (b, (_, bs, comp),envb,_) funs ->
              let b = ident_of_binder b in
+             let (x,bs) = match envb with
+               | None -> (0,bs)
+               | Some envBinder -> (1,envBinder :: bs)
+             in
              let bs =
-               if List.length bs > 0 then
+               if List.length bs > x then
                  List.map ident_of_binder bs
                else
                  [fresh_identifier "_unit"]
@@ -186,6 +192,7 @@ let ir_llambda : string -> globals -> name_env -> effenv -> Ir.program -> Llambd
            funs []
        in
        `Rec (funs, body)
+
     (*| `Module (name, binderlist) *)
     (*| `Alien (binder, name, lang)  (**Ask Sam about**) *)
     | _ -> error ("Unimplemented feature of type binding:\n")

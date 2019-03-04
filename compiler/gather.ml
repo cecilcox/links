@@ -161,12 +161,19 @@ module TraverseIr = struct
          let o = o#binder env_b in
          let o = List.fold_left (fun o b -> o#binder b) o args in
          o#computation comp
-      | `Rec ((b, (_, args, comp), _, _) :: rest) ->
+      | `Rec ((b, (_, args, comp), None, _) :: rest) ->
 	 let funs = List.map (fun f -> `Fun f) rest in
 	 let o = o#computation comp in
          let o = o#binder b in
          let o = List.fold_left (fun o b -> o#binder b) o args in
 	 o#bindings funs
+      | `Rec ((b, (_, args, comp), Some env_b, _) :: rest) ->
+   let funs = List.map (fun f -> `Fun f) rest in
+   let o = o#computation comp in
+         let o = o#binder b in
+         let o = o#binder env_b in
+         let o = List.fold_left (fun o b -> o#binder b) o args in
+   o#bindings funs
       | _ -> assert false
 
     method binder : Ir.binder -> 'self_type =
